@@ -168,14 +168,58 @@ if ('serviceWorker' in navigator) {
 
 renderZone();
 
-// --- TOOL TEMPORANEO PER CALIBRAZIONE ---
-document.getElementById('mapWrap').addEventListener('click', (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width * 100).toFixed(0);
-    const y = ((e.clientY - rect.top) / rect.height * 100).toFixed(0);
+// --- MODALITÀ EDITOR COORDINATE ---
+let editMode = true; // Imposta a true per trascinare i punti
+let draggedMarker = null;
+
+function enableDragging() {
+    document.addEventListener('mousemove', (e) => {
+        if (!draggedMarker || !editMode) return;
+        const rect = $('mapWrap').getBoundingClientRect();
+        // Calcola percentuale
+        const x = ((e.clientX - rect.left) / rect.width * 100).toFixed(0);
+        const y = ((e.clientY - rect.top) / rect.height * 100).toFixed(0);
+        
+        draggedMarker.style.left = x + '%';
+        draggedMarker.style.top = y + '%';
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (draggedMarker) {
+            const label = draggedMarker.dataset.label;
+            const x = parseInt(draggedMarker.style.left);
+            const y = parseInt(draggedMarker.style.top);
+            
+            // Aggiorna l'oggetto zones
+            const pointIndex = zones[currentZone].points.findIndex(p => p[0] === label);
+            zones[currentZone].points[pointIndex][1] = x;
+            zones[currentZone].points[pointIndex][2] = y;
+            
+            console.log(`Nuove coordinate per ${label}: [${x}, ${y}]`);
+            console.log("Oggetto zone aggiornato:", JSON.stringify(zones, null, 2));
+            draggedMarker = null;
+        }
+    });
+}
+
+// Modifica la funzione renderZone esistente per aggiungere l'evento mousedown
+// Sostituisci la parte della creazione del marker in renderZone() con questa:
+/*
+    const m = document.createElement('button');
+    m.className = 'marker ' + statusFor(label) + (selectedPoint === label ? ' selected' : '');
+    m.style.left = x + '%';
+    m.style.top = y + '%';
+    m.dataset.label = label;
+    m.title = label;
     
-    // Mostra un alert con le coordinate pronte da copiare
-    const msg = `Coordinate trovate: [${x}, ${y}]`;
-    console.log(msg);
-    alert(msg);
-});
+    // Drag logic
+    m.onmousedown = (e) => {
+        if(editMode) {
+            draggedMarker = m;
+            e.stopPropagation();
+        } else {
+            selectPoint(label);
+        }
+    };
+    $('markersLayer').appendChild(m);
+*/
