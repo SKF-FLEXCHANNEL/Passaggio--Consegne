@@ -5,17 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Passaggio Consegne HMI</title>
   <link rel="stylesheet" href="style.css" />
-  <link rel="manifest" href="manifest.json" />
 </head>
 <body>
-  <header class="topbar">
-    <button id="menuBtn" class="icon-btn">☰</button>
-    <div>
-      <h1>Passaggio Consegne</h1>
-      <p>Registro anomalie turno con layout interattivo Zona 1, Zona 2 e Zona 3</p>
-    </div>
-  </header>
-
   <main class="app-shell">
     <section class="workspace">
       <nav class="tabs">
@@ -23,76 +14,20 @@
         <button class="tab" data-zone="zona2">Zona 2</button>
         <button class="tab" data-zone="zona3">Zona 3</button>
       </nav>
-
-      <div class="zone-head">
-        <div>
-          <h2 id="zoneTitle">ZONA 1 - Layout interattivo</h2>
-          <p>Clicca sui punti per visualizzare o inserire anomalie.</p>
-        </div>
-        <div class="filters">
-          <select id="statusFilter">
-            <option value="tutte">Tutte</option>
-            <option value="aperta" selected>Aperte</option>
-            <option value="lavorazione">In lavorazione</option>
-            <option value="risolta">Risolte</option>
-          </select>
-        </div>
-      </div>
-
-     <div class="map-wrap" id="mapWrap">
-  <img src="img/zona1.jpg" id="zoneImage" />
-  <svg id="markersLayer" viewBox="0 0 1000 800" preserveAspectRatio="xMidYMid meet">
-    </svg>
-</div>
+      <h2 id="zoneTitle">ZONA 1</h2>
+      
+      <div class="map-wrap" id="mapWrap">
+        <img id="zoneImage" src="img/zona1.jpg" />
+        <svg id="markersLayer" viewBox="0 0 100 100" preserveAspectRatio="none">
+        </svg>
       </div>
     </section>
 
     <aside id="panel" class="panel">
-      <button id="closePanel" class="close">×</button>
-      <h2>Dettaglio Punto</h2>
-      <div id="pointInfo" class="point-info">Seleziona un punto sul layout.</div>
-
-      <button id="newAnomalyBtn" class="new-btn">＋ Nuova anomalia</button>
-
-      <form id="anomalyForm" class="form hidden">
-        <label>Titolo</label>
-        <input id="title" required placeholder="Es. Rumore anomalo" />
-        <label>Priorità</label>
-        <select id="priority">
-          <option value="alta">Alta</option>
-          <option value="media" selected>Media</option>
-          <option value="bassa">Bassa</option>
-        </select>
-        <label>Stato</label>
-        <select id="status">
-          <option value="aperta">Aperta</option>
-          <option value="lavorazione">In lavorazione</option>
-          <option value="risolta">Risolta</option>
-        </select>
-        <label>Turno</label>
-        <select id="shift">
-          <option>Mattina</option><option>Pomeriggio</option><option>Notte</option>
-        </select>
-        <label>Descrizione / consegna</label>
-        <textarea id="description" required placeholder="Scrivi cosa è successo..."></textarea>
-        <label>Operatore</label>
-        <input id="operator" placeholder="Nome operatore" />
-        <div class="form-actions">
-          <button type="submit">Salva</button>
-          <button type="button" id="cancelForm" class="secondary">Annulla</button>
-        </div>
-      </form>
-
-      <div id="anomalyList" class="anomaly-list"></div>
+      <h2 id="pointInfo">Seleziona Punto</h2>
+      <div id="anomalyList"></div>
     </aside>
   </main>
-
-  <footer class="footer">
-    <span id="openCounter">0 anomalie aperte</span>
-    <button id="exportBtn">Esporta TXT</button>
-    <button onclick="window.print()">Stampa / PDF</button>
-  </footer>
-
   <script src="app.js"></script>
 </body>
 </html>
