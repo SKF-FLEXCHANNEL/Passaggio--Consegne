@@ -1,4 +1,3 @@
-// --- CONFIGURAZIONE ZONE (Coordinate 0-100 fisso) ---
 const zones = {
   zona1: { title: 'ZONA 1', img: 'img/zona1.jpg', points: [
     ['SG01', 20, 23], ['OP30A', 14, 31], ['OP30B', 35, 27], ['OP30C', 45, 25], ['OP30D', 53, 25], ['OP30E', 63, 27], ['SG03', 48, 36], ['SG05', 60, 37],
@@ -16,11 +15,9 @@ const KEY = 'hmi_consegne_v2';
 let currentZone = 'zona1';
 let selectedPoint = null;
 let anomalies = JSON.parse(localStorage.getItem(KEY) || '[]');
-const $ = id => document.getElementById(id);
 
-// --- RENDERING PUNTI SVG ---
 function renderZone() {
-    const svg = $('markersLayer');
+    const svg = document.getElementById('markersLayer');
     svg.innerHTML = '';
     
     zones[currentZone].points.forEach(p => {
@@ -29,54 +26,63 @@ function renderZone() {
         circle.setAttribute("cx", x);
         circle.setAttribute("cy", y);
         circle.setAttribute("r", "2.5");
-        circle.setAttribute("class", "marker " + statusFor(label));
-        circle.dataset.label = label;
+        circle.setAttribute("class", "marker " + getStatus(label));
         circle.onclick = () => selectPoint(label);
         svg.appendChild(circle);
     });
+    renderList();
 }
 
-function statusFor(point) {
+function getStatus(point) {
     const arr = anomalies.filter(a => a.zone === currentZone && a.point === point);
-    if (arr.some(a => a.status === 'aperta')) return 'aperta';
-    if (arr.some(a => a.status === 'lavorazione')) return 'lavorazione';
-    if (arr.some(a => a.status === 'risolta')) return 'risolta';
-    return '';
+    return arr.some(a => a.status === 'aperta') ? 'aperta' : (arr.some(a=>a.status==='lavorazione') ? 'lavorazione' : '');
 }
 
 function selectPoint(label) {
     selectedPoint = label;
-    $('panel').classList.add('open');
-    $('pointInfo').innerHTML = `<b>${label}</b>`;
-    renderPanel();
+    document.getElementById('title').value = label;
+    renderList(label);
 }
 
-function renderPanel() {
-    if (!selectedPoint) return;
-    let list = anomalies.filter(a => a.zone === currentZone && a.point === selectedPoint);
-    $('anomalyList').innerHTML = list.length ? list.map(a => `
-        <div class="anomaly">
-            <b>${a.title}</b>
-            <div class="meta">${a.status}</div>
-            <button onclick="removeAnomaly('${a.id}')">Elimina</button>
-        </div>`).join('') : '<p class="meta">Nessuna anomalia.</p>';
+function renderList(filterPoint = null) {
+    const filterStatus = document.getElementById('statusFilter').value;
+    let list = anomalies.filter(a => a.zone === currentZone);
+    if(filterPoint) list = list.filter(a => a.point === filterPoint);
+    if(filterStatus === 'aperta') list = list.filter(a => a.status === 'aperta');
+    
+    document.getElementById('anomalyList').innerHTML = list.map(a => `
+        <div class="anomaly ${a.status}">
+            <b>${a.point}</b>: ${a.title}<br>${a.description}
+            <button onclick="removeAnomaly(${a.id})">Elimina</button>
+        </div>`).join('');
 }
 
 function removeAnomaly(id) {
-    if(confirm('Eliminare anomalia?')) {
-        anomalies = anomalies.filter(a => a.id!==id);
-        localStorage.setItem(KEY, JSON.stringify(anomalies));
-        renderZone();
-        renderPanel();
-    }
+    anomalies = anomalies.filter(a => a.id !== id);
+    localStorage.setItem(KEY, JSON.stringify(anomalies));
+    renderZone();
 }
 
-document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
+document.getElementById('anomalyForm').onsubmit = (e) => {
+    e.preventDefault();
+    anomalies.unshift({
+        id: Date.now(),
+        zone: currentZone,
+        point: document.getElementById('title').value,
+        title: document.getElementById('title').value,
+        status: document.getElementById('status').value,
+        description: document.getElementById('description').value
+    });
+    localStorage.setItem(KEY, JSON.stringify(anomalies));
+    renderZone();
+};
+
+document.querySelectorAll('.tab').forEach(b => b.onclick = (e) => {
     document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-    b.classList.add('active');
-    currentZone = b.dataset.zone;
-    $('zoneTitle').textContent = zones[currentZone].title;
-    $('zoneImage').src = zones[currentZone].img;
+    e.target.classList.add('active');
+    currentZone = e.target.dataset.zone;
+    document.getElementById('zoneTitle').textContent = zones[currentZone].title;
+    document.getElementById('zoneImage').src = zones[currentZone].img;
     renderZone();
 });
 
