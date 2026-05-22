@@ -167,3 +167,15 @@ if ('serviceWorker' in navigator) {
 }
 
 renderZone();
+
+// --- TOOL TEMPORANEO PER CALIBRAZIONE ---
+document.getElementById('mapWrap').addEventListener('click', (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width * 100).toFixed(0);
+    const y = ((e.clientY - rect.top) / rect.height * 100).toFixed(0);
+    
+    // Mostra un alert con le coordinate pronte da copiare
+    const msg = `Coordinate trovate: [${x}, ${y}]`;
+    console.log(msg);
+    alert(msg);
+});
