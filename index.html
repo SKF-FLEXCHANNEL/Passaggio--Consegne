@@ -2,52 +2,219 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Passaggio Consegne HMI</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#071827" />
+  <meta name="description" content="Registro anomalie turno con layout interattivo Zone 1, 2 e 3" />
+  <title>Passaggio Consegne - Layout Interattivo</title>
   <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header>
-    <h1>Passaggio Consegne</h1>
-    <p>Registro anomalie linea - Layout interattivo</p>
-  </header>
-
-  <main class="app-shell">
-    <section class="workspace">
-      <nav class="tabs">
-        <button class="tab active" data-zone="zona1">Zona 1</button>
-        <button class="tab" data-zone="zona2">Zona 2</button>
-        <button class="tab" data-zone="zona3">Zona 3</button>
-      </nav>
-
-      <h2 id="zoneTitle">ZONA 1</h2>
-      
-      <div class="map-wrap" id="mapWrap">
-        <img id="zoneImage" src="img/zona1.jpg" />
-        <svg id="markersLayer" viewBox="0 0 100 100" preserveAspectRatio="none">
-        </svg>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-logo">⚙</div>
+        <div>
+          <strong>Passaggio<br>Consegne</strong>
+          <small>Registro anomalie turno</small>
+        </div>
       </div>
-    </section>
-
-    <aside class="panel">
-      <h2 id="pointInfo">Seleziona Punto</h2>
-      <select id="statusFilter" onchange="renderZone()">
-        <option value="tutte">Tutte</option>
-        <option value="aperta">Solo Aperte</option>
-      </select>
-      <div id="anomalyList"></div>
-      
-      <hr>
-      <h3>Nuova Anomalia</h3>
-      <form id="anomalyForm">
-        <input id="title" placeholder="Stazione/Macchina" required>
-        <select id="status"><option value="aperta">Aperta</option><option value="lavorazione">In lavorazione</option><option value="risolta">Risolta</option></select>
-        <textarea id="description" placeholder="Descrizione"></textarea>
-        <button type="submit">Salva Anomalia</button>
-      </form>
+      <nav class="menu">
+        <button class="menu-btn active" data-view="layout">▦ Layout</button>
+        <button class="menu-btn" data-view="anomalie">⚠ Anomalie</button>
+        <button class="menu-btn" data-view="storico">↺ Storico</button>
+        <button class="menu-btn" data-view="report">▣ Report</button>
+        <button class="menu-btn" data-view="settings">⚙ Impostazioni</button>
+      </nav>
+      <button class="collapse-btn" id="collapseBtn">‹ Riduci menu</button>
     </aside>
-  </main>
+
+    <div class="main">
+      <header class="topbar">
+        <button class="hamburger" id="hamburger" aria-label="Apri menu">☰</button>
+        <div class="title-block">
+          <h1>Passaggio Consegne</h1>
+          <p>Registro anomalie turno con layout interattivo di Zona 1, Zona 2 e Zona 3</p>
+        </div>
+        <div class="top-actions">
+          <span id="clock">--:--</span>
+          <button id="installBtn" class="ghost hidden">Installa</button>
+        </div>
+      </header>
+
+      <section class="zone-tabs" aria-label="Seleziona zona">
+        <button class="zone-tab active" data-zone="zona1">Zona 1</button>
+        <button class="zone-tab" data-zone="zona2">Zona 2</button>
+        <button class="zone-tab" data-zone="zona3">Zona 3</button>
+      </section>
+
+      <main class="content">
+        <section class="layout-view view active" id="view-layout">
+          <div class="section-head">
+            <div>
+              <h2 id="zoneTitle">ZONA 1 - Layout interattivo</h2>
+              <p>Clicca su un punto per visualizzare o inserire anomalie.</p>
+            </div>
+            <div class="filters">
+              <span>Stato:</span>
+              <button class="filter active" data-filter="tutte">Tutte</button>
+              <button class="filter" data-filter="aperta">Aperte</button>
+              <button class="filter" data-filter="lavorazione">In lavorazione</button>
+              <button class="filter" data-filter="risolta">Risolte</button>
+            </div>
+          </div>
+
+          <div class="workspace">
+            <div class="map-card">
+              <div class="map-tools">
+                <button id="zoomOut" title="Riduci">−</button>
+                <button id="zoomReset" title="Ripristina">100%</button>
+                <button id="zoomIn" title="Ingrandisci">+</button>
+                <label class="switch-label"><input type="checkbox" id="labelToggle" checked /> Etichette</label>
+              </div>
+              <div class="map-scroll" id="mapScroll">
+                <div class="layout-stage" id="layoutStage">
+                  <img id="layoutImage" src="img/zona1.jpg" alt="Layout zona" draggable="false" />
+                  <div id="markersLayer" class="markers-layer"></div>
+                </div>
+              </div>
+            </div>
+
+            <aside class="detail-panel" id="detailPanel" aria-live="polite">
+              <button class="panel-close" id="closePanel">×</button>
+              <div id="panelContent" class="empty-panel">
+                <h3>Dettaglio punto</h3>
+                <p>Seleziona un punto sul layout per vedere o inserire anomalie.</p>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="view" id="view-anomalie">
+          <div class="section-head">
+            <div>
+              <h2>Tutte le anomalie</h2>
+              <p>Elenco completo delle anomalie registrate.</p>
+            </div>
+          </div>
+          <div id="allAnomalies" class="list-card"></div>
+        </section>
+
+        <section class="view" id="view-storico">
+          <div class="section-head">
+            <div>
+              <h2>Storico consegne</h2>
+              <p>Consulta gli interventi chiusi e le note dei turni precedenti.</p>
+            </div>
+          </div>
+          <div id="historyList" class="list-card"></div>
+        </section>
+
+        <section class="view" id="view-report">
+          <div class="section-head">
+            <div>
+              <h2>Report turno</h2>
+              <p>Riepilogo pronto per il passaggio consegne.</p>
+            </div>
+          </div>
+          <div class="report-grid">
+            <div class="stat-card danger"><b id="statAperte">0</b><span>Aperte</span></div>
+            <div class="stat-card warn"><b id="statLav">0</b><span>In lavorazione</span></div>
+            <div class="stat-card ok"><b id="statRisolte">0</b><span>Risolte</span></div>
+            <div class="stat-card"><b id="statTotali">0</b><span>Totali</span></div>
+          </div>
+          <textarea id="reportText" readonly class="report-text"></textarea>
+        </section>
+
+        <section class="view" id="view-settings">
+          <div class="section-head">
+            <div>
+              <h2>Impostazioni</h2>
+              <p>Gestione dati locali e backup.</p>
+            </div>
+          </div>
+          <div class="settings-card">
+            <button id="exportJson" class="primary">Esporta backup JSON</button>
+            <label class="file-import">Importa backup JSON<input id="importJson" type="file" accept="application/json" /></label>
+            <button id="exportText" class="secondary">Esporta passaggio consegne TXT</button>
+            <button id="printBtn" class="secondary">Stampa / salva PDF</button>
+            <button id="clearAll" class="danger-btn">Cancella tutto il registro</button>
+          </div>
+        </section>
+      </main>
+
+      <footer class="bottom-bar">
+        <div class="status-pill"><span class="dot danger"></span><b id="footerOpen">0</b> anomalie aperte</div>
+        <div>Ultimo aggiornamento: <span id="lastUpdate">--</span></div>
+        <div class="footer-actions">
+          <button id="quickExport">⇩ Esporta</button>
+          <button id="quickPrint">⎙ Stampa</button>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <dialog id="anomalyDialog" class="dialog">
+    <form method="dialog" id="anomalyForm" class="dialog-box">
+      <div class="dialog-head">
+        <h3 id="dialogTitle">Nuova anomalia</h3>
+        <button value="cancel" class="icon-btn">×</button>
+      </div>
+
+      <input type="hidden" id="editId" />
+      <input type="hidden" id="selectedPointId" />
+
+      <div class="form-grid">
+        <label>Data e ora
+          <input id="fieldDatetime" type="datetime-local" required />
+        </label>
+        <label>Turno
+          <select id="fieldShift" required>
+            <option>Mattina</option>
+            <option>Pomeriggio</option>
+            <option>Notte</option>
+          </select>
+        </label>
+        <label>Operatore
+          <input id="fieldOperator" placeholder="Nome operatore" />
+        </label>
+        <label>Priorità
+          <select id="fieldPriority" required>
+            <option value="Alta">Alta</option>
+            <option value="Media" selected>Media</option>
+            <option value="Bassa">Bassa</option>
+          </select>
+        </label>
+        <label>Stato
+          <select id="fieldStatus" required>
+            <option value="Aperta">Aperta</option>
+            <option value="In lavorazione">In lavorazione</option>
+            <option value="Risolta">Risolta</option>
+          </select>
+        </label>
+        <label>Assegnata a
+          <input id="fieldAssigned" placeholder="Manutenzione / Conduttore / Qualità" />
+        </label>
+      </div>
+
+      <label>Titolo anomalia
+        <input id="fieldTitle" placeholder="Esempio: sensore sporco, rumorosità, robot in allarme..." required />
+      </label>
+      <label>Descrizione
+        <textarea id="fieldDescription" placeholder="Scrivi cosa è successo, quando si presenta, eventuali allarmi o condizioni..." required></textarea>
+      </label>
+      <label>Intervento / consegna per turno successivo
+        <textarea id="fieldAction" placeholder="Scrivi cosa è stato fatto e cosa deve controllare il turno successivo..."></textarea>
+      </label>
+
+      <div class="dialog-actions">
+        <button value="cancel" class="secondary" type="button" id="cancelDialog">Annulla</button>
+        <button class="primary" type="submit">Salva anomalia</button>
+      </div>
+    </form>
+  </dialog>
+
   <script src="app.js"></script>
 </body>
 </html>
