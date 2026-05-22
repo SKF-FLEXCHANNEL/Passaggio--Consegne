@@ -11,104 +11,134 @@
 <body>
   <header>
     <h1>Passaggio Consegne</h1>
-    <p>Registro anomalie turno per Zona 1, Zona 2, Zona 3 e Generale</p>
+    <p>Registro anomalie turno con layout interattivo di Zona 1, Zona 2 e Zona 3</p>
   </header>
 
-  <main class="grid">
-    <section class="card">
-      <h2>Nuova anomalia</h2>
-      <form id="form">
-        <label>Data e ora</label>
-        <input id="dataOra" type="datetime-local" required />
-
-        <label>Turno</label>
-        <select id="turno" required>
-          <option value="Mattina">Mattina</option>
-          <option value="Pomeriggio">Pomeriggio</option>
-          <option value="Notte">Notte</option>
-        </select>
-
-        <label>Zona</label>
-        <select id="zona" required>
+  <main>
+    <section class="card layout-card">
+      <div class="layout-head">
+        <div>
+          <h2>Layout interattivo linea</h2>
+          <p>Clicca su un punto OP/Robot/Lavatrice per inserire o vedere le anomalie collegate.</p>
+        </div>
+        <select id="layoutZona" onchange="cambiaLayoutZona()">
           <option value="Zona 1">Zona 1</option>
           <option value="Zona 2">Zona 2</option>
           <option value="Zona 3">Zona 3</option>
-          <option value="Generale">Generale</option>
         </select>
+      </div>
+      <div class="layout-wrap" id="layoutWrap">
+        <img id="layoutImg" src="assets/layout/zona1.jpg" alt="Layout zona" />
+        <div id="hotspots"></div>
+      </div>
+      <div class="legend">
+        <span><i class="dot green"></i>Nessuna anomalia aperta</span>
+        <span><i class="dot red"></i>Anomalia aperta</span>
+        <span><i class="dot orange"></i>In lavorazione</span>
+      </div>
+    </section>
 
-        <label>Stazione / OP</label>
-        <input id="stazione" placeholder="Esempio: OP30A, OP125, Lavatrice, Robot 4..." />
+    <div class="grid">
+      <section class="card">
+        <h2 id="formTitle">Nuova anomalia</h2>
+        <form id="form">
+          <label>Data e ora</label>
+          <input id="dataOra" type="datetime-local" required />
 
-        <label>Tipo anomalia</label>
-        <select id="tipo">
-          <option>Meccanica</option>
-          <option>Elettrica</option>
-          <option>Robot</option>
-          <option>Visione / Keyence</option>
-          <option>Misura IR-OR</option>
-          <option>Gioco radiale</option>
-          <option>Scorrevolezza</option>
-          <option>Pesatura / grasso</option>
-          <option>Sicurezza</option>
-          <option>Altro</option>
-        </select>
+          <label>Turno</label>
+          <select id="turno" required>
+            <option value="Mattina">Mattina</option>
+            <option value="Pomeriggio">Pomeriggio</option>
+            <option value="Notte">Notte</option>
+          </select>
 
-        <label>Priorità</label>
-        <select id="priorita">
-          <option value="Alta">Alta</option>
-          <option value="Media" selected>Media</option>
-          <option value="Bassa">Bassa</option>
-        </select>
+          <label>Zona</label>
+          <select id="zona" required onchange="syncLayoutFromForm()">
+            <option value="Zona 1">Zona 1</option>
+            <option value="Zona 2">Zona 2</option>
+            <option value="Zona 3">Zona 3</option>
+            <option value="Generale">Generale</option>
+          </select>
 
-        <label>Descrizione anomalia</label>
-        <textarea id="descrizione" placeholder="Scrivi cosa è successo, quando si presenta, eventuali allarmi o condizioni..." required></textarea>
+          <label>Stazione / OP</label>
+          <input id="stazione" placeholder="Esempio: OP30A, OP125, Lavatrice, Robot 4..." />
 
-        <label>Intervento effettuato / cosa controllare</label>
-        <textarea id="intervento" placeholder="Scrivi cosa hai già fatto e cosa deve controllare il turno successivo..."></textarea>
+          <label>Tipo anomalia</label>
+          <select id="tipo">
+            <option>Meccanica</option>
+            <option>Elettrica</option>
+            <option>Robot</option>
+            <option>Visione / Keyence</option>
+            <option>Misura IR-OR</option>
+            <option>Gioco radiale</option>
+            <option>Scorrevolezza</option>
+            <option>Pesatura / grasso</option>
+            <option>Sicurezza</option>
+            <option>Altro</option>
+          </select>
 
-        <label>Operatore</label>
-        <input id="operatore" placeholder="Nome operatore" />
+          <label>Priorità</label>
+          <select id="priorita">
+            <option value="Alta">Alta</option>
+            <option value="Media" selected>Media</option>
+            <option value="Bassa">Bassa</option>
+          </select>
 
-        <div class="buttons">
-          <button type="submit" class="btn-green">Salva anomalia</button>
-          <button type="button" class="btn-dark" onclick="resetForm()">Pulisci</button>
+          <label>Descrizione anomalia</label>
+          <textarea id="descrizione" placeholder="Scrivi cosa è successo, quando si presenta, eventuali allarmi o condizioni..." required></textarea>
+
+          <label>Intervento effettuato / cosa controllare</label>
+          <textarea id="intervento" placeholder="Scrivi cosa hai già fatto e cosa deve controllare il turno successivo..."></textarea>
+
+          <label>Operatore</label>
+          <input id="operatore" placeholder="Nome operatore" />
+
+          <div class="buttons">
+            <button type="submit" class="btn-green">Salva anomalia</button>
+            <button type="button" class="btn-dark" onclick="resetForm()">Pulisci</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Registro consegne</h2>
+        <div class="stats">
+          <div class="stat"><b id="totAperte">0</b><span>Aperte</span></div>
+          <div class="stat"><b id="totLav">0</b><span>In lavorazione</span></div>
+          <div class="stat"><b id="totRisolte">0</b><span>Risolte</span></div>
         </div>
-      </form>
-    </section>
 
-    <section class="card">
-      <h2>Registro consegne</h2>
-      <div class="stats">
-        <div class="stat"><b id="totAperte">0</b><span>Aperte</span></div>
-        <div class="stat"><b id="totLav">0</b><span>In lavorazione</span></div>
-        <div class="stat"><b id="totRisolte">0</b><span>Risolte</span></div>
-      </div>
+        <div class="filters">
+          <select id="filtroZona" onchange="render()">
+            <option value="Tutte">Tutte le zone</option>
+            <option>Zona 1</option><option>Zona 2</option><option>Zona 3</option><option>Generale</option>
+          </select>
+          <select id="filtroStato" onchange="render()">
+            <option value="Tutti">Tutti gli stati</option>
+            <option value="Aperta">Aperta</option>
+            <option value="In lavorazione">In lavorazione</option>
+            <option value="Risolta">Risolta</option>
+          </select>
+        </div>
 
-      <div class="filters">
-        <select id="filtroZona" onchange="render()">
-          <option value="Tutte">Tutte le zone</option>
-          <option>Zona 1</option>
-          <option>Zona 2</option>
-          <option>Zona 3</option>
-          <option>Generale</option>
-        </select>
-        <select id="filtroStato" onchange="render()">
-          <option value="Tutti">Tutti gli stati</option>
-          <option value="Aperta">Aperta</option>
-          <option value="In lavorazione">In lavorazione</option>
-          <option value="Risolta">Risolta</option>
-        </select>
-      </div>
+        <div class="buttons export-buttons">
+          <button class="btn-orange" onclick="esportaTesto()">Esporta consegna</button>
+          <button class="btn-dark" onclick="stampa()">Stampa / PDF</button>
+          <button class="btn-red" onclick="cancellaTutto()">Cancella tutto</button>
+        </div>
 
-      <div class="buttons export-buttons">
-        <button class="btn-orange" onclick="esportaTesto()">Esporta consegna</button>
-        <button class="btn-dark" onclick="stampa()">Stampa / PDF</button>
-        <button class="btn-red" onclick="cancellaTutto()">Cancella tutto</button>
-      </div>
-
-      <div id="lista"></div>
-    </section>
+        <div id="lista"></div>
+      </section>
+    </div>
   </main>
+
+  <div class="popup-backdrop" id="popupBackdrop" onclick="chiudiPopup(event)">
+    <div class="popup" onclick="event.stopPropagation()">
+      <button class="popup-close" onclick="chiudiPopup()">×</button>
+      <h3 id="popupTitle"></h3>
+      <div id="popupBody"></div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>
