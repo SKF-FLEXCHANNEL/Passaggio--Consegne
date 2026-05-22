@@ -5,8 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Passaggio Consegne HMI</title>
   <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.json" />
 </head>
 <body>
+  <header>
+    <h1>Passaggio Consegne</h1>
+    <p>Registro anomalie linea - Layout interattivo</p>
+  </header>
+
   <main class="app-shell">
     <section class="workspace">
       <nav class="tabs">
@@ -14,6 +20,7 @@
         <button class="tab" data-zone="zona2">Zona 2</button>
         <button class="tab" data-zone="zona3">Zona 3</button>
       </nav>
+
       <h2 id="zoneTitle">ZONA 1</h2>
       
       <div class="map-wrap" id="mapWrap">
@@ -23,9 +30,22 @@
       </div>
     </section>
 
-    <aside id="panel" class="panel">
+    <aside class="panel">
       <h2 id="pointInfo">Seleziona Punto</h2>
+      <select id="statusFilter" onchange="renderZone()">
+        <option value="tutte">Tutte</option>
+        <option value="aperta">Solo Aperte</option>
+      </select>
       <div id="anomalyList"></div>
+      
+      <hr>
+      <h3>Nuova Anomalia</h3>
+      <form id="anomalyForm">
+        <input id="title" placeholder="Stazione/Macchina" required>
+        <select id="status"><option value="aperta">Aperta</option><option value="lavorazione">In lavorazione</option><option value="risolta">Risolta</option></select>
+        <textarea id="description" placeholder="Descrizione"></textarea>
+        <button type="submit">Salva Anomalia</button>
+      </form>
     </aside>
   </main>
   <script src="app.js"></script>
