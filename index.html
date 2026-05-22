@@ -3,142 +3,95 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#0f172a" />
-  <title>Passaggio Consegne - Anomalie Turno</title>
-  <link rel="manifest" href="manifest.json" />
+  <title>Passaggio Consegne HMI</title>
   <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.json" />
 </head>
 <body>
-  <header>
-    <h1>Passaggio Consegne</h1>
-    <p>Registro anomalie turno con layout interattivo di Zona 1, Zona 2 e Zona 3</p>
+  <header class="topbar">
+    <button id="menuBtn" class="icon-btn">☰</button>
+    <div>
+      <h1>Passaggio Consegne</h1>
+      <p>Registro anomalie turno con layout interattivo Zona 1, Zona 2 e Zona 3</p>
+    </div>
   </header>
 
-  <main>
-    <section class="card layout-card">
-      <div class="layout-head">
+  <main class="app-shell">
+    <section class="workspace">
+      <nav class="tabs">
+        <button class="tab active" data-zone="zona1">Zona 1</button>
+        <button class="tab" data-zone="zona2">Zona 2</button>
+        <button class="tab" data-zone="zona3">Zona 3</button>
+      </nav>
+
+      <div class="zone-head">
         <div>
-          <h2>Layout interattivo linea</h2>
-          <p>Clicca su un punto OP/Robot/Lavatrice per inserire o vedere le anomalie collegate.</p>
+          <h2 id="zoneTitle">ZONA 1 - Layout interattivo</h2>
+          <p>Clicca sui punti per visualizzare o inserire anomalie.</p>
         </div>
-        <select id="layoutZona" onchange="cambiaLayoutZona()">
-          <option value="Zona 1">Zona 1</option>
-          <option value="Zona 2">Zona 2</option>
-          <option value="Zona 3">Zona 3</option>
-        </select>
+        <div class="filters">
+          <select id="statusFilter">
+            <option value="tutte">Tutte</option>
+            <option value="aperta">Aperte</option>
+            <option value="lavorazione">In lavorazione</option>
+            <option value="risolta">Risolte</option>
+          </select>
+        </div>
       </div>
-      <div class="layout-wrap" id="layoutWrap">
-        <img id="layoutImg" src="assets/layout/zona1.jpg" alt="Layout zona" />
-        <div id="hotspots"></div>
-      </div>
-      <div class="legend">
-        <span><i class="dot green"></i>Nessuna anomalia aperta</span>
-        <span><i class="dot red"></i>Anomalia aperta</span>
-        <span><i class="dot orange"></i>In lavorazione</span>
+
+      <div class="map-card">
+        <div id="mapWrap" class="map-wrap">
+          <img id="zoneImage" src="img/zona1.jpg" alt="Layout Zona" />
+          <div id="markersLayer"></div>
+        </div>
       </div>
     </section>
 
-    <div class="grid">
-      <section class="card">
-        <h2 id="formTitle">Nuova anomalia</h2>
-        <form id="form">
-          <label>Data e ora</label>
-          <input id="dataOra" type="datetime-local" required />
+    <aside id="panel" class="panel">
+      <button id="closePanel" class="close">×</button>
+      <h2>Dettaglio Punto</h2>
+      <div id="pointInfo" class="point-info">Seleziona un punto sul layout.</div>
 
-          <label>Turno</label>
-          <select id="turno" required>
-            <option value="Mattina">Mattina</option>
-            <option value="Pomeriggio">Pomeriggio</option>
-            <option value="Notte">Notte</option>
-          </select>
+      <button id="newAnomalyBtn" class="new-btn">＋ Nuova anomalia</button>
 
-          <label>Zona</label>
-          <select id="zona" required onchange="syncLayoutFromForm()">
-            <option value="Zona 1">Zona 1</option>
-            <option value="Zona 2">Zona 2</option>
-            <option value="Zona 3">Zona 3</option>
-            <option value="Generale">Generale</option>
-          </select>
-
-          <label>Stazione / OP</label>
-          <input id="stazione" placeholder="Esempio: OP30A, OP125, Lavatrice, Robot 4..." />
-
-          <label>Tipo anomalia</label>
-          <select id="tipo">
-            <option>Meccanica</option>
-            <option>Elettrica</option>
-            <option>Robot</option>
-            <option>Visione / Keyence</option>
-            <option>Misura IR-OR</option>
-            <option>Gioco radiale</option>
-            <option>Scorrevolezza</option>
-            <option>Pesatura / grasso</option>
-            <option>Sicurezza</option>
-            <option>Altro</option>
-          </select>
-
-          <label>Priorità</label>
-          <select id="priorita">
-            <option value="Alta">Alta</option>
-            <option value="Media" selected>Media</option>
-            <option value="Bassa">Bassa</option>
-          </select>
-
-          <label>Descrizione anomalia</label>
-          <textarea id="descrizione" placeholder="Scrivi cosa è successo, quando si presenta, eventuali allarmi o condizioni..." required></textarea>
-
-          <label>Intervento effettuato / cosa controllare</label>
-          <textarea id="intervento" placeholder="Scrivi cosa hai già fatto e cosa deve controllare il turno successivo..."></textarea>
-
-          <label>Operatore</label>
-          <input id="operatore" placeholder="Nome operatore" />
-
-          <div class="buttons">
-            <button type="submit" class="btn-green">Salva anomalia</button>
-            <button type="button" class="btn-dark" onclick="resetForm()">Pulisci</button>
-          </div>
-        </form>
-      </section>
-
-      <section class="card">
-        <h2>Registro consegne</h2>
-        <div class="stats">
-          <div class="stat"><b id="totAperte">0</b><span>Aperte</span></div>
-          <div class="stat"><b id="totLav">0</b><span>In lavorazione</span></div>
-          <div class="stat"><b id="totRisolte">0</b><span>Risolte</span></div>
+      <form id="anomalyForm" class="form hidden">
+        <label>Titolo</label>
+        <input id="title" required placeholder="Es. Rumore anomalo" />
+        <label>Priorità</label>
+        <select id="priority">
+          <option value="alta">Alta</option>
+          <option value="media" selected>Media</option>
+          <option value="bassa">Bassa</option>
+        </select>
+        <label>Stato</label>
+        <select id="status">
+          <option value="aperta">Aperta</option>
+          <option value="lavorazione">In lavorazione</option>
+          <option value="risolta">Risolta</option>
+        </select>
+        <label>Turno</label>
+        <select id="shift">
+          <option>Mattina</option><option>Pomeriggio</option><option>Notte</option>
+        </select>
+        <label>Descrizione / consegna</label>
+        <textarea id="description" required placeholder="Scrivi cosa è successo e cosa deve controllare il turno successivo..."></textarea>
+        <label>Operatore</label>
+        <input id="operator" placeholder="Nome operatore" />
+        <div class="form-actions">
+          <button type="submit">Salva</button>
+          <button type="button" id="cancelForm" class="secondary">Annulla</button>
         </div>
+      </form>
 
-        <div class="filters">
-          <select id="filtroZona" onchange="render()">
-            <option value="Tutte">Tutte le zone</option>
-            <option>Zona 1</option><option>Zona 2</option><option>Zona 3</option><option>Generale</option>
-          </select>
-          <select id="filtroStato" onchange="render()">
-            <option value="Tutti">Tutti gli stati</option>
-            <option value="Aperta">Aperta</option>
-            <option value="In lavorazione">In lavorazione</option>
-            <option value="Risolta">Risolta</option>
-          </select>
-        </div>
-
-        <div class="buttons export-buttons">
-          <button class="btn-orange" onclick="esportaTesto()">Esporta consegna</button>
-          <button class="btn-dark" onclick="stampa()">Stampa / PDF</button>
-          <button class="btn-red" onclick="cancellaTutto()">Cancella tutto</button>
-        </div>
-
-        <div id="lista"></div>
-      </section>
-    </div>
+      <div id="anomalyList" class="anomaly-list"></div>
+    </aside>
   </main>
 
-  <div class="popup-backdrop" id="popupBackdrop" onclick="chiudiPopup(event)">
-    <div class="popup" onclick="event.stopPropagation()">
-      <button class="popup-close" onclick="chiudiPopup()">×</button>
-      <h3 id="popupTitle"></h3>
-      <div id="popupBody"></div>
-    </div>
-  </div>
+  <footer class="footer">
+    <span id="openCounter">0 anomalie aperte</span>
+    <button id="exportBtn">Esporta TXT</button>
+    <button onclick="window.print()">Stampa / PDF</button>
+  </footer>
 
   <script src="app.js"></script>
 </body>
