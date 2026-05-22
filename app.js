@@ -23,4 +23,14 @@ function changeStatus(id,status){anomalies=anomalies.map(a=>a.id===id?{...a,stat
 function renderCounter(){const n=anomalies.filter(a=>a.status==='aperta').length;$('openCounter').textContent=n+' anomalie aperte';}
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');currentZone=b.dataset.zone;selectedPoint=null;$('pointInfo').textContent='Seleziona un punto sul layout.';renderZone();});
 $('exportBtn').onclick=()=>{const txt=anomalies.map(a=>`${new Date(a.date).toLocaleString('it-IT')} | ${zones[a.zone].title.split(' ')[0]} ${a.zone.replace('zona','')} | ${a.point} | ${labelStatus(a.status)} | ${a.title}\n${a.description}\nOperatore: ${a.operator||'-'}\n`).join('\n---\n');const blob=new Blob([txt],{type:'text/plain'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='passaggio-consegne.txt';link.click();URL.revokeObjectURL(url);};
+
+// Persistenza Operatore
+window.addEventListener('load', () => {
+  const savedOp = localStorage.getItem('operatore_corrente');
+  if(savedOp) $('operator').value = savedOp;
+});
+$('operator').addEventListener('change', (e) => {
+  localStorage.setItem('operatore_corrente', e.target.value);
+});
+
 if('serviceWorker'in navigator){navigator.serviceWorker.register('service-worker.js').catch(()=>{});}renderZone();
