@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#071827" />
-  <meta name="description" content="Registro anomalie turno con layout interattivo Zone 1, 2 e 3" />
+  <meta name="description" content="Passaggio consegne con layout interattivo: anomalie turno per zona e OP" />
   <title>Passaggio Consegne - Layout Interattivo</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="icons/icon-192.png" />
@@ -16,10 +16,11 @@
       <div class="brand">
         <div class="brand-logo">⚙</div>
         <div>
-          <strong>Passaggio<br>Consegne</strong>
+          <strong>Passaggio<br />Consegne</strong>
           <small>Registro anomalie turno</small>
         </div>
       </div>
+
       <nav class="menu">
         <button class="menu-btn active" data-view="layout">▦ Layout</button>
         <button class="menu-btn" data-view="anomalie">⚠ Anomalie</button>
@@ -27,6 +28,7 @@
         <button class="menu-btn" data-view="report">▣ Report</button>
         <button class="menu-btn" data-view="settings">⚙ Impostazioni</button>
       </nav>
+
       <button class="collapse-btn" id="collapseBtn">‹ Riduci menu</button>
     </aside>
 
@@ -35,7 +37,7 @@
         <button class="hamburger" id="hamburger" aria-label="Apri menu">☰</button>
         <div class="title-block">
           <h1>Passaggio Consegne</h1>
-          <p>Registro anomalie turno con layout interattivo di Zona 1, Zona 2 e Zona 3</p>
+          <p>Registro anomalie turno con layout cliccabile sulle scritte di Zona 1, Zona 2 e Zona 3</p>
         </div>
         <div class="top-actions">
           <span id="clock">--:--</span>
@@ -54,7 +56,7 @@
           <div class="section-head">
             <div>
               <h2 id="zoneTitle">ZONA 1 - Layout interattivo</h2>
-              <p>Clicca su un punto per visualizzare o inserire anomalie.</p>
+              <p>Tocca direttamente la scritta presente sul disegno. Se non prendi il punto preciso, l’app apre comunque il punto più vicino.</p>
             </div>
             <div class="filters">
               <span>Stato:</span>
@@ -71,12 +73,25 @@
                 <button id="zoomOut" title="Riduci">−</button>
                 <button id="zoomReset" title="Ripristina">100%</button>
                 <button id="zoomIn" title="Ingrandisci">+</button>
-                <label class="switch-label"><input type="checkbox" id="labelToggle" checked /> Etichette</label>
+                <label class="switch-label" title="Visualizza le zone invisibili cliccabili">
+                  <input type="checkbox" id="hotspotToggle" /> Mostra aree cliccabili
+                </label>
               </div>
+
+              <div class="quick-select">
+                <label for="pointSelect">Seleziona punto:</label>
+                <select id="pointSelect"></select>
+                <span id="clickInfo">Click: --</span>
+              </div>
+
+              <div class="map-help">
+                Le scritte sono dentro l’immagine, quindi il click viene riconosciuto tramite aree trasparenti e ricerca del punto più vicino. Attiva “Mostra aree cliccabili” per controllare l’allineamento.
+              </div>
+
               <div class="map-scroll" id="mapScroll">
                 <div class="layout-stage" id="layoutStage">
                   <img id="layoutImage" src="img/zona1.jpg" alt="Layout zona" draggable="false" />
-                  <div id="markersLayer" class="markers-layer"></div>
+                  <div id="hotspotsLayer" class="hotspots-layer"></div>
                 </div>
               </div>
             </div>
@@ -85,7 +100,7 @@
               <button class="panel-close" id="closePanel">×</button>
               <div id="panelContent" class="empty-panel">
                 <h3>Dettaglio punto</h3>
-                <p>Seleziona un punto sul layout per vedere o inserire anomalie.</p>
+                <p>Seleziona una scritta sul layout per vedere o inserire anomalie.</p>
               </div>
             </aside>
           </div>
@@ -209,8 +224,8 @@
       </label>
 
       <div class="dialog-actions">
-        <button value="cancel" class="secondary" type="button" id="cancelDialog">Annulla</button>
-        <button class="primary" type="submit">Salva anomalia</button>
+        <button value="cancel" type="button" class="secondary" id="cancelDialog">Annulla</button>
+        <button type="submit" class="primary">Salva anomalia</button>
       </div>
     </form>
   </dialog>
