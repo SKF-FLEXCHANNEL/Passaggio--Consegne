@@ -2,7 +2,7 @@
   "name": "Passaggio Consegne Anomalie",
   "short_name": "Consegne",
   "description": "Registro anomalie turno con layout interattivo cliccabile sulle scritte",
-  "start_url": "./index.html?v=4",
+  "start_url": "./index.html?v=5",
   "scope": "./",
   "display": "standalone",
   "background_color": "#07111f",

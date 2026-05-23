@@ -1,10 +1,10 @@
-const CACHE_NAME = 'passaggio-consegne-click-fix-v4';
+const CACHE_NAME = 'passaggio-consegne-mobile-fix-v5';
 const ASSETS = [
   './',
-  './index.html?v=4',
+  './index.html?v=5',
   './index.html',
-  './style.css',
-  './app.js',
+  './style.css?v=5',
+  './app.js?v=5',
   './manifest.json',
   './img/zona1.jpg',
   './img/zona2.jpg',

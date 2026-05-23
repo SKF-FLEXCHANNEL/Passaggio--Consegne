@@ -1,56 +1,39 @@
-# Passaggio Consegne - Layout Interattivo V4
+# Passaggio Consegne - Layout interattivo anomalie
 
-Webapp per registrare anomalie di turno usando i layout ripuliti di Zona 1, Zona 2 e Zona 3.
+Webapp/PWA per registrare anomalie di turno su layout interattivo di Zona 1, Zona 2 e Zona 3.
 
-## Correzione principale V4
+## Versione V5
 
-Le scritte presenti nelle immagini JPG non sono veri testi HTML. Per renderle cliccabili, questa versione usa due sistemi insieme:
-
-1. aree trasparenti sovrapposte alle scritte;
-2. click su tutta l'immagine con selezione automatica del punto più vicino.
-
-Quindi, anche se non tocchi esattamente l'area, l'app apre comunque il punto più vicino.
-
-## File
-
-```text
-passaggio-consegne-click-fix-v4/
-├── index.html
-├── style.css
-├── app.js
-├── manifest.json
-├── service-worker.js
-├── img/
-│   ├── zona1.jpg
-│   ├── zona2.jpg
-│   └── zona3.jpg
-├── icons/
-│   ├── icon-192.png
-│   └── icon-512.png
-└── data/
-    └── punti-cliccabili.md
-```
+Correzione mobile:
+- la mappa si adatta alla larghezza del telefono;
+- non viene più forzata a 980px;
+- i pulsanti Zona 1, Zona 2, Zona 3 non coprono più il contenuto;
+- il dettaglio del punto si apre dal basso come pannello mobile;
+- resta disponibile lo zoom con i pulsanti + e -;
+- le scritte del layout sono cliccabili tramite aree trasparenti.
 
 ## Pubblicazione su GitHub Pages
 
-1. Crea o apri il repository GitHub.
-2. Carica tutti i file e le cartelle nella root del repository.
-3. Vai su **Settings > Pages**.
-4. Seleziona branch `main` e cartella `/root`.
-5. Apri il link GitHub Pages.
+1. Carica tutti i file nella repository.
+2. Vai su Settings > Pages.
+3. Seleziona Deploy from branch.
+4. Scegli branch `main` e cartella `/root`.
+5. Apri il sito con `?v=5` finale la prima volta, per evitare cache vecchie.
 
-## Dopo l'aggiornamento
+Esempio:
 
-Se sul telefono vedi ancora la vecchia versione, apri il sito aggiungendo `?v=4` alla fine del link oppure cancella la cache del sito da Chrome.
-
-## Modifica punti cliccabili
-
-I punti sono nel file `app.js`, dentro `ZONES`. Ogni punto ha:
-
-```js
-{id:'OP30A', label:'OP30A', x:22.2, y:27.0, w:6.8, h:4.5}
+```text
+https://TUO-UTENTE.github.io/NOME-REPOSITORY/?v=5
 ```
 
-- `x` e `y` sono l'angolo alto sinistro in percentuale.
-- `w` e `h` sono larghezza e altezza dell'area cliccabile in percentuale.
-- Attiva **Mostra aree cliccabili** nella webapp per vedere i rettangoli.
+## File principali
+
+- `index.html`: struttura app
+- `style.css`: grafica e correzione mobile
+- `app.js`: punti cliccabili, anomalie, report, salvataggio locale
+- `img/zona1.jpg`, `img/zona2.jpg`, `img/zona3.jpg`: layout ripuliti
+- `manifest.json` e `service-worker.js`: installazione PWA
+
+## Dati
+
+Le anomalie vengono salvate nel browser con `localStorage`. Per un uso condiviso tra più telefoni/PC bisogna aggiungere un backend, ad esempio Google Sheets, Firebase o Cloudflare Workers/D1.

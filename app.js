@@ -446,9 +446,11 @@ function exportText(){ downloadFile('passaggio-consegne.txt', buildReport(), 'te
 function exportJson(){ downloadFile('backup-passaggio-consegne.json', JSON.stringify(state.anomalies, null, 2), 'application/json'); }
 
 function setZoom(value){
-  state.zoom = Math.max(0.75, Math.min(2.5, value));
+  const isMobile = window.matchMedia('(max-width:760px)').matches;
+  const minZoom = isMobile ? 1 : 0.75;
+  state.zoom = Math.max(minZoom, Math.min(2.5, value));
   ui.layoutStage.style.transform = `scale(${state.zoom})`;
-  ui.layoutStage.style.marginBottom = `${(state.zoom - 1) * ui.layoutStage.offsetHeight}px`;
+  ui.layoutStage.style.marginBottom = `${Math.max(0, state.zoom - 1) * ui.layoutStage.offsetHeight}px`;
   ui.zoomReset.textContent = `${Math.round(state.zoom * 100)}%`;
 }
 
@@ -490,6 +492,9 @@ function setupEvents(){
   document.getElementById('zoomIn').addEventListener('click', () => setZoom(state.zoom + 0.15));
   document.getElementById('zoomOut').addEventListener('click', () => setZoom(state.zoom - 0.15));
   document.getElementById('zoomReset').addEventListener('click', () => setZoom(1));
+  window.addEventListener('resize', () => {
+    if(window.matchMedia('(max-width:760px)').matches && state.zoom < 1) setZoom(1);
+  });
   ui.closePanel.addEventListener('click', () => ui.detailPanel.classList.remove('open'));
   ui.form.addEventListener('submit', submitDialog);
   document.getElementById('cancelDialog').addEventListener('click', () => ui.dialog.close());
