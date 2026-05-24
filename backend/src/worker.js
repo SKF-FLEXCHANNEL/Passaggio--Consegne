@@ -15,6 +15,7 @@ export default {
 
       if (path === '/api/stats' && request.method === 'GET') return await getStats(env, cors);
       if (path === '/api/anomalies' && request.method === 'GET') return await listAnomalies(request, env, cors);
+      if (path === '/api/logs' && request.method === 'GET') return await listLogs(request, env, cors);
       if (path === '/api/anomalies' && request.method === 'POST') {
         await requireWriteKey(request, env);
         return await createAnomaly(request, env, cors);
@@ -105,6 +106,22 @@ async function listAnomalies(request, env, cors) {
   return json({ items: result.results || [] }, 200, cors);
 }
 
+
+async function listLogs(request, env, cors) {
+  const url = new URL(request.url);
+  const limit = Math.min(Math.max(parseInt(url.searchParams.get('limit') || '300', 10), 1), 1000);
+  const result = await env.DB.prepare(`
+    SELECT
+      l.id, l.anomaly_id, l.created_at, l.action, l.status, l.operator_name,
+      a.zone, a.point_id, a.point_label, a.title
+    FROM anomaly_log l
+    LEFT JOIN anomalies a ON a.id = l.anomaly_id
+    ORDER BY datetime(l.created_at) DESC
+    LIMIT ?
+  `).bind(limit).all();
+  return json({ items: result.results || [] }, 200, cors);
+}
+
 async function getAnomaly(id, env, cors) {
   const item = await env.DB.prepare('SELECT * FROM anomalies WHERE id = ?').bind(id).first();
   if (!item) return json({ error: 'Anomalia non trovata' }, 404, cors);
@@ -167,14 +184,14 @@ async function updateAnomaly(id, request, env, cors) {
     UPDATE anomalies SET updated_at=?, title=?, description=?, action=?, shift=?, priority=?, status=?, operator_name=?, closed_at=? WHERE id=?
   `).bind(item.updated_at, item.title, item.description, item.action, item.shift, item.priority, item.status, item.operator_name, item.closed_at, id).run();
 
-  await logEvent(env, id, 'update', item.status, item.operator_name);
+  await logEvent(env, id, existing.status !== item.status ? `status:${existing.status}->${item.status}` : 'update', item.status, item.operator_name);
   return json({ item }, 200, cors);
 }
 
 async function deleteAnomaly(id, env, cors) {
-  const existing = await env.DB.prepare('SELECT id FROM anomalies WHERE id = ?').bind(id).first();
+  const existing = await env.DB.prepare('SELECT * FROM anomalies WHERE id = ?').bind(id).first();
   if (!existing) return json({ error: 'Anomalia non trovata' }, 404, cors);
-  await logEvent(env, id, 'delete', '', '');
+  await logEvent(env, id, `delete:${existing.zone || ''}:${existing.point_label || existing.point_id || ''}:${existing.title || ''}`, existing.status || '', existing.operator_name || '');
   await env.DB.prepare('DELETE FROM anomalies WHERE id = ?').bind(id).run();
   return json({ ok: true }, 200, cors);
 }
