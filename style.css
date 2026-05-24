@@ -86,3 +86,16 @@ select,input,textarea{width:100%;border:1px solid var(--line);border-radius:12px
 .history-card-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
 .history-card .history-delete-btn{background:#7f1d1d;border-color:#fecaca;color:#fff}
 .history-card .history-delete-btn:hover{background:#991b1b}
+
+
+/* V14 - avviso interno nuova segnalazione */
+.app-alert{position:fixed;left:50%;top:88px;z-index:85;transform:translateX(-50%) translateY(-14px);width:min(680px,calc(100vw - 24px));display:flex;align-items:center;gap:12px;padding:13px 14px;border:1px solid rgba(248,113,113,.62);border-radius:18px;background:linear-gradient(135deg,rgba(127,29,29,.97),rgba(15,23,42,.98));box-shadow:0 20px 48px rgba(0,0,0,.42),0 0 0 1px rgba(248,113,113,.18) inset;color:#fff;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .18s ease,transform .18s ease,visibility .18s ease}
+.app-alert.show{opacity:1;visibility:visible;pointer-events:auto;transform:translateX(-50%) translateY(0)}
+.app-alert-icon{width:42px;height:42px;display:flex;align-items:center;justify-content:center;border-radius:14px;background:rgba(248,113,113,.18);font-size:24px;animation:alertBell 1.15s ease-in-out infinite}
+.app-alert-body{min-width:0;flex:1}.app-alert-body strong{display:block;font-size:16px;line-height:1.15}.app-alert-body p{margin:4px 0 0;color:#fee2e2;font-size:14px;line-height:1.3}.app-alert-actions{display:flex;gap:8px;align-items:center}.app-alert-actions button{white-space:nowrap;padding:9px 11px}.app-alert-actions .ghost-btn{background:rgba(15,23,42,.7)}
+@keyframes alertBell{0%,100%{transform:rotate(0)}20%{transform:rotate(-12deg)}40%{transform:rotate(10deg)}60%{transform:rotate(-6deg)}80%{transform:rotate(5deg)}}
+.hotspot.new-alert{box-shadow:0 0 0 3px rgba(248,113,113,.7),0 0 24px rgba(248,113,113,.95);animation:hotspotPulse 1s ease-in-out infinite}.hotspot.new-alert::before{background:#ef4444!important;border-color:#fecaca!important}.hotspot.new-alert::after{background:#7f1d1d!important;border-color:#fecaca!important;color:#fff!important}
+@keyframes hotspotPulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.75)}}
+.sound-enabled-badge{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(34,197,94,.45);background:rgba(22,163,74,.12);color:#bbf7d0;border-radius:999px;padding:4px 8px;font-size:12px;font-weight:800}
+@media(max-width:900px){.app-alert{top:74px;align-items:flex-start}.app-alert-actions{flex-direction:column;align-items:stretch}.app-alert-actions button{width:100%}}
+@media(max-width:520px){.app-alert{top:72px;padding:11px;border-radius:15px}.app-alert-icon{width:34px;height:34px;font-size:20px}.app-alert-body strong{font-size:14px}.app-alert-body p{font-size:13px}.app-alert-actions button{padding:8px 9px;font-size:13px}}

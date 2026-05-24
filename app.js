@@ -1,7 +1,7 @@
 /* Passaggio Consegne - Frontend condiviso Cloudflare Workers/D1
-   Versione 13: storico consegne con eliminazione protetta da PIN admin.
+   Versione 14: avviso interno app per nuove segnalazioni.
 */
-const APP_VERSION = '13.0.0-history-admin-delete';
+const APP_VERSION = '14.0.0-internal-new-alert';
 const DEFAULT_API_URL = 'https://passaggio-consegne-api.vocidicassino.workers.dev';
 const AUTO_SYNC_MS = 15000;
 const LOG_STORAGE_KEY = 'pc_anomalie_log_local_v9';
@@ -10,6 +10,7 @@ const API_URL_KEY = 'pc_api_url';
 const API_KEY_KEY = 'pc_api_key';
 const USER_PIN_KEY = 'pc_user_pin_v11';
 const ADMIN_PIN_SESSION_KEY = 'pc_admin_pin_session_v13';
+const SOUND_ENABLED_KEY = 'pc_internal_alert_sound_v14';
 
 const ZONES = {
   1: {
@@ -140,7 +141,14 @@ const state = {
   logs: [],
   autoSyncTimer: null,
   adminPin: sessionStorage.getItem(ADMIN_PIN_SESSION_KEY) || '',
-  historyAdminUnlocked: Boolean(sessionStorage.getItem(ADMIN_PIN_SESSION_KEY))
+  historyAdminUnlocked: Boolean(sessionStorage.getItem(ADMIN_PIN_SESSION_KEY)),
+  initialLoadDone: false,
+  knownAnomalyIds: new Set(),
+  latestAlertAnomaly: null,
+  alertTimer: null,
+  soundEnabled: localStorage.getItem(SOUND_ENABLED_KEY) === '1',
+  audioCtx: null,
+  lastDataSource: ''
 };
 
 const $ = (id) => document.getElementById(id);
@@ -152,6 +160,8 @@ window.addEventListener('DOMContentLoaded', () => {
   loadAnomalies();
   startAutoSync();
   if(!state.userPin) setTimeout(() => openAccessDialog(true), 350);
+  updateSoundMenuLabel();
+  if(state.soundEnabled) document.addEventListener('pointerdown', unlockAlertAudio, {once:true});
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('service-worker.js').catch(()=>{});
 });
 
@@ -183,6 +193,10 @@ function bindEvents(){
   $('saveBackend').addEventListener('click', saveBackendConfig);
   $('testBackend').addEventListener('click', testBackend);
   $('saveUserPin').addEventListener('click', saveUserPin);
+  const appAlertClose = $('appAlertClose');
+  const appAlertOpen = $('appAlertOpen');
+  if(appAlertClose) appAlertClose.addEventListener('click', hideNewAnomalyAlert);
+  if(appAlertOpen) appAlertOpen.addEventListener('click', openLatestAlertAnomaly);
 
   const menuBtn = $('menuBtn');
   const sideDrawer = $('sideDrawer');
@@ -215,6 +229,7 @@ function handleMenuAction(action){
   if(action === 'history') return showHistory();
   if(action === 'report') return showReport();
   if(action === 'refresh') return loadAnomalies();
+  if(action === 'notify') return enableInternalAlertSound(true);
   if(action === 'export') return exportTxt();
   if(action === 'print') return window.print();
   if(action === 'access') return openAccessDialog(false);
@@ -523,27 +538,165 @@ function closeDetail(){
 
 async function loadAnomalies(options={}){
   const silent = Boolean(options.silent);
+  const background = Boolean(options.background);
   state.loading = true;
   if(!silent) updateSyncStatus('Caricamento...', '');
   try{
+    let nextAnomalies;
+    let source = 'local';
     if(state.apiUrl){
       const data = await apiFetch('/api/anomalies?limit=1000');
-      state.anomalies = data.items || [];
+      nextAnomalies = data.items || [];
+      source = 'd1';
       updateSyncStatus('Online D1', 'online');
     }else{
-      state.anomalies = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      nextAnomalies = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      source = 'local';
       updateSyncStatus('Locale', 'offline');
     }
+
+    detectNewAnomalies(nextAnomalies, {silent, background, source, baseline:Boolean(options.baseline)});
+    state.anomalies = nextAnomalies;
     $('lastUpdate').textContent = new Date().toLocaleString('it-IT');
   }catch(err){
     console.error(err);
-    state.anomalies = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    const localItems = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    detectNewAnomalies(localItems, {silent:true, background, source:'local', baseline:Boolean(options.baseline)});
+    state.anomalies = localItems;
     updateSyncStatus('Offline / locale', 'offline');
     if(!silent) toast('Backend non raggiungibile: uso dati locali.');
   }finally{
     state.loading = false;
     renderAnomalies();
   }
+}
+
+function detectNewAnomalies(nextItems, options={}){
+  const items = Array.isArray(nextItems) ? nextItems : [];
+  const ids = items.map(a => a && a.id).filter(Boolean);
+  const sourceChanged = state.lastDataSource && options.source && state.lastDataSource !== options.source;
+  if(!state.initialLoadDone || options.baseline || sourceChanged){
+    state.knownAnomalyIds = new Set(ids);
+    state.initialLoadDone = true;
+    state.lastDataSource = options.source || state.lastDataSource;
+    return;
+  }
+
+  const fresh = items
+    .filter(a => a && a.id && !state.knownAnomalyIds.has(a.id) && a.status === 'aperta')
+    .sort((a,b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+
+  ids.forEach(id => state.knownAnomalyIds.add(id));
+  state.lastDataSource = options.source || state.lastDataSource;
+
+  if(fresh.length && options.background){
+    const latest = fresh[fresh.length - 1];
+    showNewAnomalyAlert(latest, fresh.length);
+  }
+}
+
+function showNewAnomalyAlert(anomaly, count=1){
+  if(!anomaly) return;
+  state.latestAlertAnomaly = anomaly;
+  const title = $('appAlertTitle');
+  const text = $('appAlertText');
+  const box = $('appAlert');
+  if(!box || !title || !text) return;
+  const multi = count > 1 ? `${count} nuove segnalazioni ricevute` : 'Nuova segnalazione ricevuta';
+  title.textContent = `🔔 ${multi}`;
+  text.textContent = `${anomaly.zone || ''} • ${anomaly.point_label || anomaly.point_id || ''} — ${anomaly.title || 'Anomalia'}${anomaly.priority ? ' | Priorità ' + labelPriority(anomaly.priority) : ''}`;
+  box.classList.remove('hidden');
+  requestAnimationFrame(() => box.classList.add('show'));
+  markAlertHotspot(anomaly);
+  playAlertSound();
+  if(state.alertTimer) clearTimeout(state.alertTimer);
+  state.alertTimer = setTimeout(() => hideNewAnomalyAlert(false), 12000);
+}
+
+function hideNewAnomalyAlert(clearLatest=true){
+  const box = $('appAlert');
+  if(box){
+    box.classList.remove('show');
+    setTimeout(() => box.classList.add('hidden'), 190);
+  }
+  if(state.alertTimer) clearTimeout(state.alertTimer);
+  state.alertTimer = null;
+  document.querySelectorAll('.hotspot.new-alert').forEach(el => el.classList.remove('new-alert'));
+  if(clearLatest) state.latestAlertAnomaly = null;
+}
+
+function openLatestAlertAnomaly(){
+  const a = state.latestAlertAnomaly;
+  hideNewAnomalyAlert(false);
+  if(a && a.zone && a.point_id){
+    openAnomalyPoint(a.zone, a.point_id);
+    state.listMode = 'point';
+    renderAnomalies();
+  }else{
+    showAllAnomalies('aperta');
+  }
+}
+
+function markAlertHotspot(anomaly){
+  document.querySelectorAll('.hotspot.new-alert').forEach(el => el.classList.remove('new-alert'));
+  const z = String(anomaly.zone || '').replace(/\D/g,'') || state.zone;
+  if(z !== state.zone) return;
+  const el = document.querySelector(`.hotspot[data-id="${cssEscape(anomaly.point_id || '')}"]`);
+  if(el) el.classList.add('new-alert');
+}
+
+function enableInternalAlertSound(showConfirm=false){
+  state.soundEnabled = true;
+  localStorage.setItem(SOUND_ENABLED_KEY, '1');
+  unlockAlertAudio();
+  updateSoundMenuLabel();
+  playAlertSound(true);
+  if(showConfirm) toast('Avviso sonoro interno attivato. Quando l’app è aperta e arriva una nuova segnalazione, comparirà il banner e sentirai un suono.');
+}
+
+function unlockAlertAudio(){
+  if(!state.soundEnabled) return;
+  try{
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if(!AudioCtx) return;
+    if(!state.audioCtx) state.audioCtx = new AudioCtx();
+    if(state.audioCtx.state === 'suspended') state.audioCtx.resume().catch(()=>{});
+  }catch(err){}
+}
+
+function playAlertSound(test=false){
+  if(!state.soundEnabled && !test) return;
+  try{
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if(!AudioCtx) return;
+    const ctx = state.audioCtx || new AudioCtx();
+    state.audioCtx = ctx;
+    if(ctx.state === 'suspended') ctx.resume().catch(()=>{});
+    const now = ctx.currentTime;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(test ? 0.08 : 0.14, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.48);
+    gain.connect(ctx.destination);
+    [880, 1175].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + i * 0.16);
+      osc.connect(gain);
+      osc.start(now + i * 0.16);
+      osc.stop(now + i * 0.16 + 0.15);
+    });
+  }catch(err){}
+}
+
+function updateSoundMenuLabel(){
+  const btn = document.querySelector('[data-menu-action="notify"]');
+  if(btn) btn.innerHTML = state.soundEnabled ? '🔔 Avviso sonoro attivo' : '🔔 Attiva avviso sonoro';
+}
+
+function cssEscape(value){
+  if(window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(String(value));
+  return String(value).replace(/[^a-zA-Z0-9_-]/g, '\\$&');
 }
 
 function renderAnomalies(){
@@ -852,6 +1005,7 @@ async function saveAnomaly(e){
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state.anomalies));
       pushLocalLog(saved.item, 'create', saved.item.status);
     }
+    if(saved && saved.item && saved.item.id) state.knownAnomalyIds.add(saved.item.id);
     e.target.reset();
     $('aPriority').value = 'media';
     $('aProblemType').value = 'altro';
@@ -920,7 +1074,7 @@ async function saveUserPin(e){
     localStorage.setItem(USER_PIN_KEY, state.userPin);
     $('userPinMsg').textContent = 'PIN corretto. App collegata al registro condiviso.';
     setTimeout(() => $('accessDialog').close(), 450);
-    loadAnomalies({silent:true});
+    loadAnomalies({silent:true, baseline:true});
   }catch(err){
     state.userPin = oldPin;
     $('userPinMsg').textContent = 'PIN non valido o backend non raggiungibile.';
@@ -956,7 +1110,7 @@ function saveBackendConfig(e){
   localStorage.setItem(API_KEY_KEY, state.apiKey);
   $('backendMsg').textContent = 'Configurazione admin salvata. Agli operatori servirà solo il PIN app.';
   startAutoSync();
-  loadAnomalies();
+  loadAnomalies({baseline:true});
 }
 async function testBackend(e){
   e.preventDefault();

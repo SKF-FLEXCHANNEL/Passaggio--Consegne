@@ -6,7 +6,7 @@
   <title>Passaggio Consegne</title>
   <meta name="theme-color" content="#071827" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=13" />
+  <link rel="stylesheet" href="style.css?v=14" />
 </head>
 <body>
   <header class="topbar">
@@ -21,6 +21,18 @@
       <button id="backendBtn" class="ghost-btn hidden" title="Area admin">⚙ Admin</button>
     </div>
   </header>
+
+  <div id="appAlert" class="app-alert hidden" role="alert" aria-live="assertive">
+    <div class="app-alert-icon">🔔</div>
+    <div class="app-alert-body">
+      <strong id="appAlertTitle">Nuova segnalazione</strong>
+      <p id="appAlertText">È stata inserita una nuova anomalia.</p>
+    </div>
+    <div class="app-alert-actions">
+      <button id="appAlertOpen" type="button" class="primary-btn">Apri</button>
+      <button id="appAlertClose" type="button" class="ghost-btn">Chiudi</button>
+    </div>
+  </div>
 
   <div id="drawerBackdrop" class="drawer-backdrop" aria-hidden="true"></div>
   <aside id="sideDrawer" class="side-drawer" aria-label="Menu laterale">
@@ -38,6 +50,7 @@
     <button type="button" data-menu-action="history">◷ Storico consegne</button>
     <button type="button" data-menu-action="open">● Solo anomalie aperte</button>
     <button type="button" data-menu-action="refresh">↻ Aggiorna da D1</button>
+    <button type="button" data-menu-action="notify">🔔 Attiva avviso sonoro</button>
     <button type="button" data-menu-action="areas">◎ Mostra/Nascondi aree cliccabili</button>
     <button type="button" data-menu-action="focus">⛶ Mappa grande</button>
     <button type="button" data-menu-action="export">⇩ Esporta consegne</button>
@@ -217,6 +230,6 @@
     </form>
   </dialog>
 
-  <script src="app.js?v=13"></script>
+  <script src="app.js?v=14"></script>
 </body>
 </html>
