@@ -6,7 +6,7 @@
   <title>Passaggio Consegne</title>
   <meta name="theme-color" content="#071827" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=10" />
+  <link rel="stylesheet" href="style.css?v=11" />
 </head>
 <body>
   <header class="topbar">
@@ -34,6 +34,7 @@
     <button type="button" class="drawer-stat drawer-alert" data-menu-action="open"><span class="dot red"></span><b id="drawerOpenCount">0</b> anomalie aperte</button>
     <button type="button" data-menu-action="layout">▦ Layout linea</button>
     <button type="button" data-menu-action="all">☷ Tutte le anomalie</button>
+    <button type="button" data-menu-action="report">📊 Report anomalie</button>
     <button type="button" data-menu-action="history">◷ Storico consegne</button>
     <button type="button" data-menu-action="open">● Solo anomalie aperte</button>
     <button type="button" data-menu-action="refresh">↻ Aggiorna da D1</button>
@@ -41,6 +42,7 @@
     <button type="button" data-menu-action="focus">⛶ Mappa grande</button>
     <button type="button" data-menu-action="export">⇩ Esporta consegne</button>
     <button type="button" data-menu-action="print">⎙ Stampa / PDF</button>
+    <button type="button" data-menu-action="access">🔑 PIN collegamento app</button>
     <button type="button" data-menu-action="backend">🔐 Area admin backend</button>
     <p class="drawer-note">Le aree cliccabili sono strette e posizionate solo sulle scritte, così non coprono i punti vicini. Usa “Mostra aree cliccabili” per controllarle.</p>
   </aside>
@@ -132,6 +134,22 @@
             </select>
           </label>
         </div>
+        <label>Tipo problema
+          <select id="aProblemType">
+            <option value="sensore">Sensore</option>
+            <option value="meccanica">Meccanica</option>
+            <option value="elettrica">Elettrica</option>
+            <option value="robot">Robot</option>
+            <option value="visione_keyence">Visione / Keyence</option>
+            <option value="misura">Misura / calibrazione</option>
+            <option value="gioco_radiale">Gioco radiale</option>
+            <option value="scorrevolezza">Scorrevolezza</option>
+            <option value="lavatrice">Lavatrice</option>
+            <option value="pesatura_grasso">Pesatura / grasso</option>
+            <option value="sicurezza">Sicurezza</option>
+            <option value="altro" selected>Altro</option>
+          </select>
+        </label>
         <label>Descrizione
           <textarea id="aDescription" required placeholder="Descrivi cosa è successo e quando si presenta."></textarea>
         </label>
@@ -165,15 +183,30 @@
     </div>
   </footer>
 
+  <dialog id="accessDialog" class="dialog">
+    <form method="dialog" class="dialog-card">
+      <h3>PIN collegamento app</h3>
+      <p>Inserisci il PIN unico dato dall’amministratore. Lo stesso PIN collega tutti i telefoni e PC allo stesso registro condiviso.</p>
+      <label>PIN app
+        <input id="userPinInput" type="password" inputmode="numeric" autocomplete="current-password" placeholder="PIN app" />
+      </label>
+      <div class="dialog-actions">
+        <button id="saveUserPin" class="primary-btn" value="default">Collega</button>
+        <button class="ghost-btn" value="cancel">Chiudi</button>
+      </div>
+      <p id="userPinMsg" class="small-msg"></p>
+    </form>
+  </dialog>
+
   <dialog id="backendDialog" class="dialog">
     <form method="dialog" class="dialog-card">
       <h3>Area admin - Backend condiviso</h3>
-      <p>La configurazione Cloudflare resta nascosta agli operatori. Inserisci/modifica l’URL del Worker e la chiave impostata come secret <b>APP_WRITE_KEY</b>.</p>
+      <p>Questa sezione serve solo a chi mette in funzione l’app. Gli operatori devono usare soltanto il PIN collegamento app.</p>
       <label>URL API Cloudflare Worker
         <input id="apiUrlInput" placeholder="https://passaggio-consegne-api.tuo-account.workers.dev" />
       </label>
-      <label>Chiave/PIN scrittura
-        <input id="apiKeyInput" type="password" placeholder="APP_WRITE_KEY" />
+      <label>Chiave scrittura legacy / emergenza
+        <input id="apiKeyInput" type="password" placeholder="APP_WRITE_KEY opzionale" />
       </label>
       <div class="dialog-actions">
         <button id="saveBackend" class="primary-btn" value="default">Salva</button>
@@ -184,6 +217,6 @@
     </form>
   </dialog>
 
-  <script src="app.js?v=10"></script>
+  <script src="app.js?v=11"></script>
 </body>
 </html>

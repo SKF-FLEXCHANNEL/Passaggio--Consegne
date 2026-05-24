@@ -1,13 +1,15 @@
 /* Passaggio Consegne - Frontend condiviso Cloudflare Workers/D1
-   Versione 10: aree cliccabili precise sulle scritte del layout tecnico.
+   Versione 11: report anomalie frequenti + PIN unico app + admin nascosto.
 */
-const APP_VERSION = '10.0.0-precise-label-hotspots';
+const APP_VERSION = '11.0.0-report-pin';
 const DEFAULT_API_URL = 'https://passaggio-consegne-api.vocidicassino.workers.dev';
 const AUTO_SYNC_MS = 15000;
 const LOG_STORAGE_KEY = 'pc_anomalie_log_local_v9';
 const STORAGE_KEY = 'pc_anomalie_local_v7';
 const API_URL_KEY = 'pc_api_url';
 const API_KEY_KEY = 'pc_api_key';
+const USER_PIN_KEY = 'pc_user_pin_v11';
+const ADMIN_SESSION_KEY = 'pc_admin_session_v11';
 
 const ZONES = {
   1: {
@@ -133,6 +135,7 @@ const state = {
   listMode: 'point',
   apiUrl: localStorage.getItem(API_URL_KEY) || DEFAULT_API_URL,
   apiKey: localStorage.getItem(API_KEY_KEY) || '',
+  userPin: localStorage.getItem(USER_PIN_KEY) || '',
   loading: false,
   logs: [],
   autoSyncTimer: null
@@ -146,6 +149,7 @@ window.addEventListener('DOMContentLoaded', () => {
   renderZone();
   loadAnomalies();
   startAutoSync();
+  if(!state.userPin) setTimeout(() => openAccessDialog(true), 350);
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('service-worker.js').catch(()=>{});
 });
 
@@ -172,6 +176,7 @@ function bindEvents(){
   $('backendBtn').addEventListener('click', openBackendDialog);
   $('saveBackend').addEventListener('click', saveBackendConfig);
   $('testBackend').addEventListener('click', testBackend);
+  $('saveUserPin').addEventListener('click', saveUserPin);
 
   const menuBtn = $('menuBtn');
   const sideDrawer = $('sideDrawer');
@@ -202,9 +207,11 @@ function handleMenuAction(action){
   if(action === 'open') return showAllAnomalies('aperta');
   if(action === 'all') return showAllAnomalies('tutte');
   if(action === 'history') return showHistory();
+  if(action === 'report') return showReport();
   if(action === 'refresh') return loadAnomalies();
   if(action === 'export') return exportTxt();
   if(action === 'print') return window.print();
+  if(action === 'access') return openAccessDialog(false);
   if(action === 'backend') return openBackendDialog(true);
   if(action === 'areas') { $('showAreas').checked = !$('showAreas').checked; toggleAreas($('showAreas').checked); return; }
   if(action === 'focus') return toggleMapFocus();
@@ -237,6 +244,142 @@ async function showHistory(){
   $('anomalyList').textContent = 'Caricamento storico...';
   await loadLogs();
   renderHistory();
+}
+
+
+function showReport(){
+  state.listMode = 'report';
+  state.selectedPoint = null;
+  document.querySelectorAll('.hotspot').forEach(el => el.classList.remove('selected'));
+  $('pointSelect').value = '';
+  $('detailPanel').classList.add('open');
+  $('newAnomalyBtn').classList.add('hidden');
+  $('anomalyForm').classList.add('hidden');
+  renderReport();
+}
+
+function renderReport(){
+  if(state.listMode !== 'report') return;
+  const items = state.anomalies.slice();
+  const active = items.filter(a => a.status !== 'risolta');
+  const resolved = items.filter(a => a.status === 'risolta');
+  const byPoint = groupCount(items, a => `${a.zone || '-'}||${a.point_label || a.point_id || '-'}`)
+    .map(row => ({...row, zone: row.key.split('||')[0], point: row.key.split('||')[1]}));
+  const byType = groupCount(items, a => labelProblemType(a.problem_type || inferProblemType(a.title || a.description || '')));
+  const byPair = groupCount(items, a => `${a.zone || '-'}||${a.point_label || a.point_id || '-'}||${labelProblemType(a.problem_type || inferProblemType(a.title || a.description || ''))}`)
+    .map(row => {
+      const [zone, point, type] = row.key.split('||');
+      return {...row, zone, point, type};
+    });
+
+  $('detailTitle').textContent = 'Report anomalie';
+  $('detailSubtitle').textContent = 'Frequenze per punto e tipo problema';
+  $('pointSummary').innerHTML = `
+    <div class="report-kpis">
+      <div><b>${items.length}</b><span>Totali</span></div>
+      <div><b>${active.length}</b><span>Attive</span></div>
+      <div><b>${resolved.length}</b><span>Risolte</span></div>
+    </div>`;
+  $('pointCount').textContent = items.length;
+  $('anomalyList').className = 'anomaly-list report-list';
+  if(!items.length){
+    $('anomalyList').className = 'anomaly-list empty';
+    $('anomalyList').textContent = 'Nessuna anomalia presente: il report si compilerà automaticamente quando inizierai a registrare segnalazioni.';
+    return;
+  }
+  $('anomalyList').innerHTML = `
+    <section class="report-section">
+      <h4>Punti con più anomalie</h4>
+      ${reportRows(byPoint.slice(0,8), row => `<button data-report-point="1" data-zone="${escapeAttr(row.zone)}" data-point-label="${escapeAttr(row.point)}">${escapeHtml(row.zone)} • ${escapeHtml(row.point)}</button>`, items.length)}
+    </section>
+    <section class="report-section">
+      <h4>Tipi di problema più frequenti</h4>
+      ${reportRows(byType.slice(0,8), row => `<span>${escapeHtml(row.key)}</span>`, items.length)}
+    </section>
+    <section class="report-section">
+      <h4>Combinazione punto + tipo problema</h4>
+      ${reportRows(byPair.slice(0,10), row => `<button data-report-point="1" data-zone="${escapeAttr(row.zone)}" data-point-label="${escapeAttr(row.point)}">${escapeHtml(row.zone)} • ${escapeHtml(row.point)}<br><small>${escapeHtml(row.type)}</small></button>`, items.length)}
+    </section>
+    <div class="report-actions">
+      <button id="exportReportBtn">⇩ Esporta report</button>
+    </div>`;
+
+  $('anomalyList').querySelectorAll('[data-report-point]').forEach(btn => btn.addEventListener('click', () => {
+    const zone = btn.dataset.zone;
+    const pointLabel = btn.dataset.pointLabel;
+    const zoneNum = String(zone || '').replace(/\D/g,'') || state.zone;
+    const pt = (ZONES[zoneNum]?.points || []).find(p => p.label === pointLabel || p.id === pointLabel);
+    if(pt) openAnomalyPoint(zone, pt.id);
+  }));
+  const exportBtn = $('exportReportBtn');
+  if(exportBtn) exportBtn.addEventListener('click', exportReportTxt);
+}
+
+function groupCount(items, keyFn){
+  const map = new Map();
+  items.forEach(item => {
+    const key = keyFn(item) || '-';
+    map.set(key, (map.get(key) || 0) + 1);
+  });
+  return [...map.entries()].map(([key,total]) => ({key,total})).sort((a,b) => b.total - a.total || String(a.key).localeCompare(String(b.key)));
+}
+
+function reportRows(rows, labelFn, total){
+  if(!rows.length) return '<div class="empty-mini">Nessun dato.</div>';
+  const max = Math.max(...rows.map(r => r.total), 1);
+  return `<div class="report-table">${rows.map(row => {
+    const pct = Math.round((row.total / total) * 100);
+    const bar = Math.max(5, Math.round((row.total / max) * 100));
+    return `<div class="report-row">
+      <div class="report-label">${labelFn(row)}</div>
+      <div class="report-bar"><span style="width:${bar}%"></span></div>
+      <b>${row.total}</b><em>${pct}%</em>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function inferProblemType(text){
+  const t = String(text || '').toLowerCase();
+  if(t.includes('sensore') || t.includes('prossim')) return 'sensore';
+  if(t.includes('robot') || t.includes('pinza')) return 'robot';
+  if(t.includes('keyence') || t.includes('visione') || t.includes('camera') || t.includes('scart')) return 'visione_keyence';
+  if(t.includes('lavatrice') || t.includes('lavaggio')) return 'lavatrice';
+  if(t.includes('peso') || t.includes('grasso') || t.includes('bilancia')) return 'pesatura_grasso';
+  if(t.includes('gioco')) return 'gioco_radiale';
+  if(t.includes('scorrevolezza')) return 'scorrevolezza';
+  if(t.includes('elettric') || t.includes('allarme')) return 'elettrica';
+  if(t.includes('meccanic') || t.includes('rumore') || t.includes('cuscinetto')) return 'meccanica';
+  if(t.includes('sicurezza') || t.includes('emergenza') || t.includes('porta')) return 'sicurezza';
+  return 'altro';
+}
+
+function exportReportTxt(){
+  const items = state.anomalies.slice();
+  const byPoint = groupCount(items, a => `${a.zone || '-'} - ${a.point_label || a.point_id || '-'}`);
+  const byType = groupCount(items, a => labelProblemType(a.problem_type || inferProblemType(a.title || a.description || '')));
+  const byPair = groupCount(items, a => `${a.zone || '-'} - ${a.point_label || a.point_id || '-'} - ${labelProblemType(a.problem_type || inferProblemType(a.title || a.description || ''))}`);
+  const text = [
+    `REPORT ANOMALIE - ${new Date().toLocaleString('it-IT')}`,
+    `Totale anomalie: ${items.length}`,
+    '',
+    'PUNTI PIÙ FREQUENTI',
+    ...byPoint.map(r => `${r.total} - ${r.key}`),
+    '',
+    'TIPI PROBLEMA PIÙ FREQUENTI',
+    ...byType.map(r => `${r.total} - ${r.key}`),
+    '',
+    'PUNTO + TIPO PROBLEMA',
+    ...byPair.map(r => `${r.total} - ${r.key}`)
+  ].join('\n');
+  downloadText('report-anomalie-passaggio-consegne.txt', text);
+}
+
+function downloadText(filename, text){
+  const blob = new Blob([text], {type:'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
 }
 
 function showAllAnomalies(status='tutte'){
@@ -409,6 +552,11 @@ function renderAnomalies(){
     return;
   }
 
+  if(state.listMode === 'report'){
+    renderReport();
+    return;
+  }
+
   if(state.listMode === 'all'){
     const allItems = filteredAnomaliesForAll(status);
     $('detailPanel').classList.add('open');
@@ -562,6 +710,7 @@ function anomalyCard(a, globalMode=false){
         <h4>${escapeHtml(a.title || 'Anomalia')}</h4>
         ${globalMode ? `<div class="anomaly-location">${escapeHtml(a.zone || '-')} • ${escapeHtml(a.point_label || a.point_id || '-')}</div>` : ''}
         <div class="priority ${a.priority || 'media'}">Priorità ${labelPriority(a.priority)}</div>
+        <div class="problem-type">Tipo: ${escapeHtml(labelProblemType(a.problem_type || 'altro'))}</div>
       </div>
       <span class="status ${a.status}">${labelStatus(a.status)}</span>
     </div>
@@ -588,6 +737,7 @@ async function saveAnomaly(e){
     point_id: state.selectedPoint.id,
     point_label: state.selectedPoint.label,
     title: $('aTitle').value.trim(),
+    problem_type: $('aProblemType').value,
     shift: $('aShift').value,
     priority: $('aPriority').value,
     description: $('aDescription').value.trim(),
@@ -610,11 +760,12 @@ async function saveAnomaly(e){
     }
     e.target.reset();
     $('aPriority').value = 'media';
+    $('aProblemType').value = 'altro';
     $('anomalyForm').classList.add('hidden');
     $('lastUpdate').textContent = new Date().toLocaleString('it-IT');
     renderAnomalies();
   }catch(err){
-    console.error(err); toast('Errore salvataggio: controlla URL API e chiave.');
+    console.error(err); toast('Errore salvataggio: controlla PIN app o collegamento Cloudflare.'); if(String(err.message||'').includes('PIN')) openAccessDialog(false);
   }
 }
 
@@ -631,7 +782,7 @@ async function updateAnomalyStatus(id, status){
       pushLocalLog(updated, `status:${old.status || ''}->${status}`, status);
     }
     renderAnomalies();
-  }catch(err){ toast('Errore aggiornamento stato.'); }
+  }catch(err){ toast('Errore aggiornamento stato: controlla PIN app.'); if(String(err.message||'').includes('PIN')) openAccessDialog(false); }
 }
 
 async function deleteAnomaly(id){
@@ -643,13 +794,14 @@ async function deleteAnomaly(id){
     state.anomalies = state.anomalies.filter(a => a.id !== id);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state.anomalies));
     renderAnomalies();
-  }catch(err){ toast('Errore eliminazione.'); }
+  }catch(err){ toast('Errore eliminazione: controlla PIN app.'); if(String(err.message||'').includes('PIN')) openAccessDialog(false); }
 }
 
 async function apiFetch(path, opts={}){
   const url = state.apiUrl.replace(/\/$/,'') + path;
   const headers = {'Content-Type':'application/json'};
   if(state.apiKey) headers['X-APP-KEY'] = state.apiKey;
+  if(state.userPin) headers['X-APP-PIN'] = state.userPin;
   const res = await fetch(url, {...opts, headers:{...headers, ...(opts.headers||{})}});
   const text = await res.text();
   let data = text ? JSON.parse(text) : {};
@@ -657,10 +809,45 @@ async function apiFetch(path, opts={}){
   return data;
 }
 
-function openBackendDialog(adminMode=false){
-  if(adminMode && state.apiKey){
-    const pin = prompt('Area admin: inserisci la chiave/PIN di scrittura.');
-    if(pin !== state.apiKey){ toast('PIN admin non valido.'); return; }
+function openAccessDialog(force=false){
+  $('userPinInput').value = state.userPin || '';
+  $('userPinMsg').textContent = force ? 'Inserisci il PIN app per abilitare salvataggio, cambio stato ed eliminazione su D1.' : '';
+  $('accessDialog').showModal();
+}
+
+async function saveUserPin(e){
+  e.preventDefault();
+  const pin = $('userPinInput').value.trim();
+  if(!pin){ $('userPinMsg').textContent = 'Inserisci il PIN app.'; return; }
+  const oldPin = state.userPin;
+  state.userPin = pin;
+  try{
+    if(state.apiUrl) await apiFetch('/api/session/check', {method:'POST', body: JSON.stringify({})});
+    localStorage.setItem(USER_PIN_KEY, state.userPin);
+    $('userPinMsg').textContent = 'PIN corretto. App collegata al registro condiviso.';
+    setTimeout(() => $('accessDialog').close(), 450);
+    loadAnomalies({silent:true});
+  }catch(err){
+    state.userPin = oldPin;
+    $('userPinMsg').textContent = 'PIN non valido o backend non raggiungibile.';
+  }
+}
+
+async function verifyAdminPin(pin){
+  const url = (state.apiUrl || DEFAULT_API_URL).replace(/\/$/,'') + '/api/admin/check';
+  const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json','X-ADMIN-PIN':pin}, body:'{}'});
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : {};
+  if(!res.ok) throw new Error(data.error || 'PIN admin non valido');
+  return data;
+}
+
+async function openBackendDialog(adminMode=false){
+  if(adminMode){
+    const adminPin = prompt('Area admin: inserisci il PIN amministratore.');
+    if(!adminPin) return;
+    try{ await verifyAdminPin(adminPin); }
+    catch(err){ toast('PIN admin non valido oppure APP_ADMIN_PIN non configurato.'); return; }
   }
   $('apiUrlInput').value = state.apiUrl || DEFAULT_API_URL;
   $('apiKeyInput').value = state.apiKey;
@@ -673,7 +860,7 @@ function saveBackendConfig(e){
   state.apiKey = $('apiKeyInput').value.trim();
   localStorage.setItem(API_URL_KEY, state.apiUrl);
   localStorage.setItem(API_KEY_KEY, state.apiKey);
-  $('backendMsg').textContent = 'Configurazione salvata.';
+  $('backendMsg').textContent = 'Configurazione admin salvata. Agli operatori servirà solo il PIN app.';
   startAutoSync();
   loadAnomalies();
 }
@@ -688,12 +875,8 @@ async function testBackend(e){
 }
 
 function exportTxt(){
-  const rows = state.anomalies.map(a => `[${formatDate(a.created_at)}] ${a.zone} - ${a.point_label}\nStato: ${labelStatus(a.status)} | Priorità: ${labelPriority(a.priority)} | Turno: ${a.shift}\nTitolo: ${a.title}\nDescrizione: ${a.description}\nConsegna: ${a.action || '-'}\nOperatore: ${a.operator_name || '-'}\n`).join('\n-----------------------------\n');
-  const blob = new Blob([rows], {type:'text/plain;charset=utf-8'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'passaggio-consegne-anomalie.txt'; a.click();
-  URL.revokeObjectURL(url);
+  const rows = state.anomalies.map(a => `[${formatDate(a.created_at)}] ${a.zone} - ${a.point_label}\nStato: ${labelStatus(a.status)} | Priorità: ${labelPriority(a.priority)} | Tipo: ${labelProblemType(a.problem_type || 'altro')} | Turno: ${a.shift}\nTitolo: ${a.title}\nDescrizione: ${a.description}\nConsegna: ${a.action || '-'}\nOperatore: ${a.operator_name || '-'}\n`).join('\n-----------------------------\n');
+  downloadText('passaggio-consegne-anomalie.txt', rows);
 }
 
 function updateSyncStatus(text, cls){
@@ -702,6 +885,7 @@ function updateSyncStatus(text, cls){
 function toast(msg){ alert(msg); }
 function labelStatus(s){ return ({aperta:'Aperta', lavorazione:'In lavorazione', risolta:'Risolta'}[s] || s || '-'); }
 function labelPriority(p){ return ({alta:'Alta', media:'Media', bassa:'Bassa'}[p] || p || '-'); }
+function labelProblemType(t){ return ({sensore:'Sensore', meccanica:'Meccanica', elettrica:'Elettrica', robot:'Robot', visione_keyence:'Visione / Keyence', misura:'Misura / calibrazione', gioco_radiale:'Gioco radiale', scorrevolezza:'Scorrevolezza', lavatrice:'Lavatrice', pesatura_grasso:'Pesatura / grasso', sicurezza:'Sicurezza', altro:'Altro'}[t] || t || 'Altro'); }
 function formatDate(value){ if(!value) return '-'; const d = new Date(value); return isNaN(d) ? value : d.toLocaleString('it-IT'); }
 function escapeHtml(str){ return String(str ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function escapeAttr(str){ return escapeHtml(str).replace(/`/g,'&#96;'); }

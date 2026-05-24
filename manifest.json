@@ -1,7 +1,7 @@
 {
   "name": "Passaggio Consegne",
   "short_name": "Consegne",
-  "start_url": "./index.html?v=7",
+  "start_url": "./index.html?v=11",
   "display": "standalone",
   "background_color": "#06111f",
   "theme_color": "#071827",
