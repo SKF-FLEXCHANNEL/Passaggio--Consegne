@@ -1,7 +1,7 @@
 /* Passaggio Consegne - Frontend condiviso Cloudflare Workers/D1
-   Versione 12: report anomalie frequenti + PIN unico app + pulsante anomalie aperte cliccabile.
+   Versione 13: storico consegne con eliminazione protetta da PIN admin.
 */
-const APP_VERSION = '12.0.0-bottom-open-click';
+const APP_VERSION = '13.0.0-history-admin-delete';
 const DEFAULT_API_URL = 'https://passaggio-consegne-api.vocidicassino.workers.dev';
 const AUTO_SYNC_MS = 15000;
 const LOG_STORAGE_KEY = 'pc_anomalie_log_local_v9';
@@ -9,7 +9,7 @@ const STORAGE_KEY = 'pc_anomalie_local_v7';
 const API_URL_KEY = 'pc_api_url';
 const API_KEY_KEY = 'pc_api_key';
 const USER_PIN_KEY = 'pc_user_pin_v11';
-const ADMIN_SESSION_KEY = 'pc_admin_session_v11';
+const ADMIN_PIN_SESSION_KEY = 'pc_admin_pin_session_v13';
 
 const ZONES = {
   1: {
@@ -138,7 +138,9 @@ const state = {
   userPin: localStorage.getItem(USER_PIN_KEY) || '',
   loading: false,
   logs: [],
-  autoSyncTimer: null
+  autoSyncTimer: null,
+  adminPin: sessionStorage.getItem(ADMIN_PIN_SESSION_KEY) || '',
+  historyAdminUnlocked: Boolean(sessionStorage.getItem(ADMIN_PIN_SESSION_KEY))
 };
 
 const $ = (id) => document.getElementById(id);
@@ -617,9 +619,21 @@ function renderHistory(){
   $('detailPanel').classList.add('open');
   $('detailTitle').textContent = 'Storico consegne';
   $('detailSubtitle').textContent = 'Ultime attività registrate';
-  $('pointSummary').innerHTML = `<b>Sincronizzazione:</b> ${state.apiUrl ? 'Cloudflare D1' : 'Locale'}<br><small>Lo storico contiene inserimenti, cambi stato, aggiornamenti ed eliminazioni.</small>`;
+  $('pointSummary').innerHTML = `
+    <b>Sincronizzazione:</b> ${state.apiUrl ? 'Cloudflare D1' : 'Locale'}<br>
+    <small>Lo storico contiene inserimenti, cambi stato, aggiornamenti ed eliminazioni.</small>
+    <div class="history-admin-box">
+      <button type="button" id="unlockHistoryDeleteBtn" class="${state.historyAdminUnlocked ? 'history-admin-on' : ''}">
+        ${state.historyAdminUnlocked ? '🔓 Eliminazione storico abilitata' : '🔐 Sblocca eliminazione con PIN admin'}
+      </button>
+      ${state.historyAdminUnlocked ? '<span class="history-admin-ok">Ora compare il tasto Elimina su ogni riga dello storico.</span>' : '<span>Solo chi ha il PIN admin può eliminare righe dallo storico.</span>'}
+    </div>`;
   $('pointCount').textContent = logs.length;
   $('newAnomalyBtn').classList.add('hidden');
+
+  const unlockBtn = $('unlockHistoryDeleteBtn');
+  if(unlockBtn) unlockBtn.addEventListener('click', unlockHistoryDelete);
+
   if(!logs.length){
     $('anomalyList').className = 'anomaly-list empty';
     $('anomalyList').textContent = 'Nessuno storico disponibile.';
@@ -630,6 +644,70 @@ function renderHistory(){
   $('anomalyList').querySelectorAll('[data-open-history-point]').forEach(btn => btn.addEventListener('click', () => {
     openAnomalyPoint(btn.dataset.zone, btn.dataset.pointId);
   }));
+  $('anomalyList').querySelectorAll('[data-delete-history-log]').forEach(btn => btn.addEventListener('click', () => {
+    deleteHistoryLog(btn.dataset.deleteHistoryLog);
+  }));
+}
+
+async function unlockHistoryDelete(){
+  if(state.historyAdminUnlocked){
+    if(confirm('Vuoi bloccare di nuovo i tasti Elimina dello storico?')){
+      state.historyAdminUnlocked = false;
+      state.adminPin = '';
+      sessionStorage.removeItem(ADMIN_PIN_SESSION_KEY);
+      renderHistory();
+    }
+    return;
+  }
+  const pin = prompt('Inserisci il PIN admin per abilitare l’eliminazione dello storico.');
+  if(!pin) return;
+  try{
+    await verifyAdminPin(pin.trim());
+    state.adminPin = pin.trim();
+    state.historyAdminUnlocked = true;
+    sessionStorage.setItem(ADMIN_PIN_SESSION_KEY, state.adminPin);
+    renderHistory();
+  }catch(err){
+    toast('PIN admin non valido oppure APP_ADMIN_PIN non configurato nel Worker.');
+  }
+}
+
+async function deleteHistoryLog(logId){
+  if(!logId) return;
+  if(!state.historyAdminUnlocked){
+    await unlockHistoryDelete();
+    if(!state.historyAdminUnlocked) return;
+  }
+  if(!confirm('Eliminare questa riga dallo storico consegne? L’anomalia collegata non verrà eliminata.')) return;
+  try{
+    if(state.apiUrl){
+      await apiFetchAdmin(`/api/logs/${encodeURIComponent(logId)}`, {method:'DELETE'});
+    }else{
+      const logs = JSON.parse(localStorage.getItem(LOG_STORAGE_KEY) || '[]').filter(l => l.id !== logId);
+      localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logs));
+    }
+    state.logs = (state.logs || []).filter(l => l.id !== logId);
+    renderHistory();
+  }catch(err){
+    console.error(err);
+    state.historyAdminUnlocked = false;
+    state.adminPin = '';
+    sessionStorage.removeItem(ADMIN_PIN_SESSION_KEY);
+    toast('Eliminazione storico non riuscita: aggiorna il Worker alla V13 e controlla il PIN admin.');
+    renderHistory();
+  }
+}
+
+async function apiFetchAdmin(path, opts={}){
+  const url = state.apiUrl.replace(/\/$/,'') + path;
+  const headers = {'Content-Type':'application/json'};
+  const pin = state.adminPin || sessionStorage.getItem(ADMIN_PIN_SESSION_KEY) || '';
+  if(pin) headers['X-ADMIN-PIN'] = pin;
+  const res = await fetch(url, {...opts, headers:{...headers, ...(opts.headers||{})}});
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : {};
+  if(!res.ok) throw new Error(data.error || res.statusText);
+  return data;
 }
 
 function historyCard(log){
@@ -638,12 +716,18 @@ function historyCard(log){
   const zone = log.zone || '';
   const point = log.point_id || '';
   const canOpen = zone && point;
+  const deleteBtn = state.historyAdminUnlocked
+    ? `<button type="button" class="history-delete-btn" data-delete-history-log="${escapeAttr(log.id)}">Elimina</button>`
+    : '';
   return `<article class="history-card">
     <div class="history-top"><b>${escapeHtml(badge)}</b><span>${formatDate(log.created_at)}</span></div>
     <p>${escapeHtml(historyText(log))}</p>
     ${log.status ? `<p><b>Stato:</b> ${escapeHtml(labelStatus(log.status))}</p>` : ''}
     ${log.operator_name ? `<p><b>Operatore:</b> ${escapeHtml(log.operator_name)}</p>` : ''}
-    ${canOpen ? `<button data-open-history-point="1" data-zone="${escapeAttr(zone)}" data-point-id="${escapeAttr(point)}">Apri punto ${escapeHtml(log.point_label || point)}</button>` : `<small>Dettaglio punto non disponibile per questo evento.</small>`}
+    <div class="history-card-actions">
+      ${canOpen ? `<button type="button" data-open-history-point="1" data-zone="${escapeAttr(zone)}" data-point-id="${escapeAttr(point)}">Apri punto ${escapeHtml(log.point_label || point)}</button>` : `<small>Dettaglio punto non disponibile per questo evento.</small>`}
+      ${deleteBtn}
+    </div>
   </article>`;
 }
 
