@@ -1,8 +1,8 @@
-const CACHE_NAME = 'passaggio-consegne-v7';
+const CACHE_NAME = 'passaggio-consegne-v8';
 const ASSETS = [
   './index.html?v=7',
-  './style.css?v=7',
-  './app.js?v=7',
+  './style.css?v=8',
+  './app.js?v=8',
   './manifest.json',
   './img/zona1.jpg',
   './img/zona2.jpg',

@@ -6,7 +6,7 @@
   <title>Passaggio Consegne</title>
   <meta name="theme-color" content="#071827" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=7" />
+  <link rel="stylesheet" href="style.css?v=8" />
 </head>
 <body>
   <header class="topbar">
@@ -14,7 +14,6 @@
       <button id="menuBtn" class="icon-btn" title="Menu">☰</button>
       <div>
         <h1>Passaggio Consegne</h1>
-        <p>Registro anomalie condiviso con Cloudflare Workers/D1</p>
       </div>
     </div>
     <div class="top-actions">
@@ -32,7 +31,7 @@
       </div>
       <button id="closeMenuBtn" class="icon-btn" type="button">×</button>
     </div>
-    <div class="drawer-stat"><span class="dot red"></span><b id="drawerOpenCount">0</b> anomalie aperte</div>
+    <button type="button" class="drawer-stat drawer-alert" data-menu-action="open"><span class="dot red"></span><b id="drawerOpenCount">0</b> anomalie aperte</button>
     <button type="button" data-menu-action="layout">▦ Layout linea</button>
     <button type="button" data-menu-action="all">☷ Tutte le anomalie</button>
     <button type="button" data-menu-action="open">● Solo anomalie aperte</button>
@@ -184,6 +183,6 @@
     </form>
   </dialog>
 
-  <script src="app.js?v=7"></script>
+  <script src="app.js?v=8"></script>
 </body>
 </html>

@@ -51,3 +51,10 @@ Nella webapp premi **Backend** e inserisci:
 - URL Worker Cloudflare
 - chiave `APP_WRITE_KEY`
 
+
+
+## Aggiornamento V8
+- rimosso il sottotitolo sotto Passaggio Consegne.
+- il menu laterale apre l'elenco globale delle anomalie.
+- le anomalie nel menu/elenco sono cliccabili e portano al punto corretto della mappa.
+- `Tutte le anomalie` mostra davvero tutte le segnalazioni, mentre `Solo anomalie aperte` mostra tutte quelle attive.

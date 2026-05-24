@@ -1,7 +1,7 @@
 /* Passaggio Consegne - Frontend condiviso Cloudflare Workers/D1
-   Versione 7: menu laterale funzionante + aree cliccabili riallineate sulle scritte del layout.
+   Versione 8: menu laterale completo, elenco globale anomalie e apertura segnalazioni dal menu.
 */
-const APP_VERSION = '7.0.0-menu-hotspot-fix';
+const APP_VERSION = '8.0.0-menu-global-list-fix';
 const STORAGE_KEY = 'pc_anomalie_local_v7';
 const API_URL_KEY = 'pc_api_url';
 const API_KEY_KEY = 'pc_api_key';
@@ -123,6 +123,7 @@ const state = {
   zoom: 1,
   showAreas: false,
   mapFocus: false,
+  listMode: 'point',
   apiUrl: localStorage.getItem(API_URL_KEY) || '',
   apiKey: localStorage.getItem(API_KEY_KEY) || '',
   loading: false
@@ -141,7 +142,12 @@ window.addEventListener('DOMContentLoaded', () => {
 function bindEvents(){
   document.querySelectorAll('.zone-tab').forEach(btn => btn.addEventListener('click', () => switchZone(btn.dataset.zone)));
   $('pointSelect').addEventListener('change', e => selectPoint(e.target.value));
-  $('statusFilter').addEventListener('change', renderAnomalies);
+  $('statusFilter').addEventListener('change', () => {
+    if(state.listMode === 'all' || !state.selectedPoint){
+      state.listMode = 'all';
+    }
+    renderAnomalies();
+  });
   $('showAreas').addEventListener('change', e => toggleAreas(e.target.checked));
   $('zoomIn').addEventListener('click', () => setZoom(Math.min(2.5, state.zoom + .15)));
   $('zoomOut').addEventListener('click', () => setZoom(Math.max(1, state.zoom - .15)));
@@ -182,9 +188,9 @@ function closeMenu(){
 }
 function handleMenuAction(action){
   closeMenu();
-  if(action === 'layout') return window.scrollTo({top:0,behavior:'smooth'});
-  if(action === 'open') { $('statusFilter').value = 'aperta'; renderAnomalies(); return; }
-  if(action === 'all') { $('statusFilter').value = 'tutte'; renderAnomalies(); return; }
+  if(action === 'layout') { state.listMode = 'point'; resetDetail(); return window.scrollTo({top:0,behavior:'smooth'}); }
+  if(action === 'open') return showAllAnomalies('aperta');
+  if(action === 'all') return showAllAnomalies('tutte');
   if(action === 'refresh') return loadAnomalies();
   if(action === 'export') return exportTxt();
   if(action === 'print') return window.print();
@@ -192,6 +198,19 @@ function handleMenuAction(action){
   if(action === 'areas') { $('showAreas').checked = !$('showAreas').checked; toggleAreas($('showAreas').checked); return; }
   if(action === 'focus') return toggleMapFocus();
 }
+function showAllAnomalies(status='tutte'){
+  state.listMode = 'all';
+  state.selectedPoint = null;
+  $('statusFilter').value = status;
+  document.querySelectorAll('.hotspot').forEach(el => el.classList.remove('selected'));
+  $('pointSelect').value = '';
+  $('detailPanel').classList.add('open');
+  $('newAnomalyBtn').classList.add('hidden');
+  $('anomalyForm').classList.add('hidden');
+  renderAnomalies();
+  setTimeout(() => $('detailPanel').scrollTo({top:0,behavior:'smooth'}), 0);
+}
+
 function toggleMapFocus(){
   state.mapFocus = !state.mapFocus;
   document.body.classList.toggle('map-focus', state.mapFocus);
@@ -205,6 +224,7 @@ function tickClock(){
 function switchZone(zone){
   state.zone = String(zone);
   state.selectedPoint = null;
+  state.listMode = 'point';
   document.querySelectorAll('.zone-tab').forEach(b => b.classList.toggle('active', b.dataset.zone === state.zone));
   renderZone();
   renderAnomalies();
@@ -265,6 +285,8 @@ function fallbackImageClick(e){
 
 function selectPoint(pointId){
   if(!pointId) return;
+  state.listMode = 'point';
+  $('newAnomalyBtn').classList.remove('hidden');
   const pt = ZONES[state.zone].points.find(p => p.id === pointId);
   if(!pt) return;
   state.selectedPoint = pt;
@@ -278,11 +300,27 @@ function selectPoint(pointId){
   renderAnomalies();
 }
 
+function openAnomalyPoint(zoneName, pointId){
+  const z = String(zoneName || '').replace(/\D/g,'') || state.zone;
+  if(ZONES[z] && z !== state.zone){
+    state.zone = z;
+    document.querySelectorAll('.zone-tab').forEach(b => b.classList.toggle('active', b.dataset.zone === state.zone));
+    renderZone();
+  }
+  const pt = ZONES[state.zone].points.find(p => p.id === pointId);
+  if(pt){
+    selectPoint(pt.id);
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+}
+
 function resetDetail(){
   $('detailPanel').classList.remove('open');
   $('detailTitle').textContent = 'Nessun punto selezionato';
   $('detailSubtitle').textContent = 'Seleziona una scritta sul layout.';
+  state.listMode = 'point';
   $('pointSummary').innerHTML = '';
+  $('newAnomalyBtn').classList.remove('hidden');
   $('pointCount').textContent = '0';
   $('anomalyList').className = 'anomaly-list empty';
   $('anomalyList').textContent = 'Seleziona un punto per vedere le anomalie.';
@@ -319,39 +357,89 @@ async function loadAnomalies(){
 
 function renderAnomalies(){
   const status = $('statusFilter').value;
-  const zoneName = `Zona ${state.zone}`;
-  let filtered = state.anomalies.filter(a => a.zone === zoneName);
-  if(status !== 'tutte') filtered = filtered.filter(a => a.status === status);
   const open = state.anomalies.filter(a => a.status === 'aperta').length;
   $('openCount').textContent = open;
   const drawerOpen = $('drawerOpenCount');
   if(drawerOpen) drawerOpen.textContent = open;
 
+  if(state.listMode === 'all'){
+    const allItems = filteredAnomaliesForAll(status);
+    $('detailPanel').classList.add('open');
+    $('detailTitle').textContent = status === 'aperta' ? 'Anomalie aperte' : 'Tutte le anomalie';
+    $('detailSubtitle').textContent = status === 'tutte' ? 'Elenco completo di tutte le zone' : `Filtro: ${labelStatus(status)}`;
+    $('pointSummary').innerHTML = `<b>Registro condiviso</b><br>Da qui puoi aprire direttamente il punto della segnalazione e vedere il dettaglio.`;
+    $('pointCount').textContent = allItems.length;
+    $('newAnomalyBtn').classList.add('hidden');
+    $('anomalyForm').classList.add('hidden');
+    renderListItems(allItems, true, 'Nessuna anomalia trovata con questo filtro.');
+    return;
+  }
+
   if(!state.selectedPoint){
     $('anomalyList').className = 'anomaly-list empty';
-    $('anomalyList').textContent = 'Seleziona un punto per vedere le anomalie.';
+    $('anomalyList').textContent = 'Seleziona un punto per vedere le anomalie oppure apri “Tutte le anomalie” dal menu.';
     $('pointCount').textContent = '0';
     return;
   }
-  const pointItems = filtered.filter(a => a.point_id === state.selectedPoint.id);
+
+  const zoneName = `Zona ${state.zone}`;
+  let pointItems = state.anomalies.filter(a => a.zone === zoneName && a.point_id === state.selectedPoint.id);
+  if(status !== 'tutte') pointItems = pointItems.filter(a => a.status === status);
+  pointItems = sortAnomalies(pointItems);
   $('pointCount').textContent = pointItems.length;
+  $('newAnomalyBtn').classList.remove('hidden');
+  renderListItems(pointItems, false, 'Nessuna anomalia per questo punto.');
+}
+
+function filteredAnomaliesForAll(status){
+  let items = state.anomalies.slice();
+  if(status !== 'tutte') items = items.filter(a => a.status === status);
+  return sortAnomalies(items);
+}
+
+function sortAnomalies(items){
+  return items.sort((a,b) => new Date(b.created_at || b.date_time || 0) - new Date(a.created_at || a.date_time || 0));
+}
+
+function renderListItems(items, globalMode=false, emptyText='Nessuna anomalia.'){
   const list = $('anomalyList');
-  if(pointItems.length === 0){
+  if(items.length === 0){
     list.className = 'anomaly-list empty';
-    list.textContent = 'Nessuna anomalia per questo punto.';
+    list.textContent = emptyText;
     return;
   }
   list.className = 'anomaly-list';
-  list.innerHTML = pointItems.map(a => anomalyCard(a)).join('');
-  list.querySelectorAll('[data-status-set]').forEach(btn => btn.addEventListener('click', () => updateAnomalyStatus(btn.dataset.id, btn.dataset.statusSet)));
-  list.querySelectorAll('[data-delete]').forEach(btn => btn.addEventListener('click', () => deleteAnomaly(btn.dataset.delete)));
+  list.innerHTML = items.map(a => anomalyCard(a, globalMode)).join('');
+  bindAnomalyListEvents(list);
 }
 
-function anomalyCard(a){
-  return `<article class="anomaly-card">
+function bindAnomalyListEvents(list){
+  list.querySelectorAll('[data-status-set]').forEach(btn => btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    updateAnomalyStatus(btn.dataset.id, btn.dataset.statusSet);
+  }));
+  list.querySelectorAll('[data-delete]').forEach(btn => btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    deleteAnomaly(btn.dataset.delete);
+  }));
+  list.querySelectorAll('[data-open-anomaly]').forEach(card => card.addEventListener('click', () => {
+    openAnomalyPoint(card.dataset.zone, card.dataset.pointId);
+  }));
+  list.querySelectorAll('[data-open-point]').forEach(btn => btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openAnomalyPoint(btn.dataset.zone, btn.dataset.pointId);
+  }));
+}
+
+function anomalyCard(a, globalMode=false){
+  const zone = escapeAttr(a.zone || '');
+  const pointId = escapeAttr(a.point_id || '');
+  const clickableAttrs = globalMode ? ` data-open-anomaly="1" data-zone="${zone}" data-point-id="${pointId}"` : '';
+  return `<article class="anomaly-card ${globalMode ? 'clickable' : ''}"${clickableAttrs}>
     <div class="anomaly-top">
       <div>
         <h4>${escapeHtml(a.title || 'Anomalia')}</h4>
+        ${globalMode ? `<div class="anomaly-location">${escapeHtml(a.zone || '-')} • ${escapeHtml(a.point_label || a.point_id || '-')}</div>` : ''}
         <div class="priority ${a.priority || 'media'}">Priorità ${labelPriority(a.priority)}</div>
       </div>
       <span class="status ${a.status}">${labelStatus(a.status)}</span>
@@ -362,10 +450,11 @@ function anomalyCard(a){
     ${a.action ? `<p><b>Consegna:</b><br>${escapeHtml(a.action)}</p>` : ''}
     ${a.operator_name ? `<p><b>Operatore:</b> ${escapeHtml(a.operator_name)}</p>` : ''}
     <div class="card-actions">
-      <button data-id="${a.id}" data-status-set="aperta">Aperta</button>
-      <button data-id="${a.id}" data-status-set="lavorazione">In lavorazione</button>
-      <button data-id="${a.id}" data-status-set="risolta">Risolta</button>
-      <button data-delete="${a.id}">Elimina</button>
+      ${globalMode ? `<button data-open-point="1" data-zone="${zone}" data-point-id="${pointId}">Apri punto</button>` : ''}
+      <button data-id="${escapeAttr(a.id)}" data-status-set="aperta">Aperta</button>
+      <button data-id="${escapeAttr(a.id)}" data-status-set="lavorazione">In lavorazione</button>
+      <button data-id="${escapeAttr(a.id)}" data-status-set="risolta">Risolta</button>
+      <button data-delete="${escapeAttr(a.id)}">Elimina</button>
     </div>
   </article>`;
 }
