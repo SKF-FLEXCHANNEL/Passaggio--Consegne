@@ -8,7 +8,7 @@ export default {
       const path = url.pathname.replace(/\/+$/, '') || '/';
 
       if (path === '/' || path === '/api/health') {
-        return json({ status: 'online', app: 'passaggio-consegne-api', version: '11-report-pin', time: new Date().toISOString() }, 200, cors);
+        return json({ status: 'online', app: 'passaggio-consegne-api', version: '13-history-admin-delete', time: new Date().toISOString() }, 200, cors);
       }
 
       if (path === '/api/admin/check' && request.method === 'POST') {
@@ -28,6 +28,12 @@ export default {
       if (path === '/api/anomalies' && request.method === 'POST') {
         await requireAppPinOrWriteKey(request, env);
         return await createAnomaly(request, env, cors);
+      }
+
+      const logMatch = path.match(/^\/api\/logs\/([^/]+)$/);
+      if (logMatch && request.method === 'DELETE') {
+        await requireAdminPin(request, env);
+        return await deleteLog(logMatch[1], env, cors);
       }
 
       const match = path.match(/^\/api\/anomalies\/([^/]+)$/);
@@ -251,6 +257,13 @@ async function deleteAnomaly(id, env, cors) {
   await logEvent(env, existing, 'delete', existing.status || '', existing.operator_name || '');
   await env.DB.prepare('DELETE FROM anomalies WHERE id = ?').bind(id).run();
   return json({ ok: true }, 200, cors);
+}
+
+async function deleteLog(id, env, cors) {
+  const existing = await env.DB.prepare('SELECT id FROM anomaly_log WHERE id = ?').bind(id).first();
+  if (!existing) return json({ error: 'Riga storico non trovata' }, 404, cors);
+  await env.DB.prepare('DELETE FROM anomaly_log WHERE id = ?').bind(id).run();
+  return json({ ok: true, deleted_id: id }, 200, cors);
 }
 
 async function getStats(env, cors) {
