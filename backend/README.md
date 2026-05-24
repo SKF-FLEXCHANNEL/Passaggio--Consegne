@@ -1,65 +1,39 @@
-# Backend Cloudflare Workers + D1
+# Backend Cloudflare Workers + D1 - V9
 
-Questo backend permette di usare la webapp da più telefoni e PC con un database condiviso.
-
-## Comandi principali
-
-```bash
-cd backend
-npm install
-npx wrangler login
-npx wrangler d1 create passaggio-consegne-db
-```
-
-Copia il `database_id` restituito da Cloudflare dentro `wrangler.toml` al posto di:
-
-```toml
-database_id = "INSERISCI_QUI_DATABASE_ID"
-```
-
-Poi crea le tabelle nel database remoto:
-
-```bash
-npx wrangler d1 execute passaggio-consegne-db --file=./schema.sql --remote
-```
-
-Imposta la chiave di scrittura:
-
-```bash
-npx wrangler secret put APP_WRITE_KEY
-```
-
-Quando te la chiede, inserisci una chiave o un PIN robusto, per esempio:
+Questa versione aggiunge l'endpoint:
 
 ```text
-ConsegneLinea2026!
+GET /api/logs?limit=500
 ```
 
-Pubblica il Worker:
+Serve per visualizzare lo storico consegne nella webapp.
 
-```bash
-npx wrangler deploy
-```
+## Da fare su Cloudflare senza Wrangler
 
-Al termine Cloudflare ti darà un URL simile a:
+1. Apri Cloudflare.
+2. Vai su **Workers & Pages**.
+3. Apri il Worker `passaggio-consegne-api`.
+4. Clicca **Edit code**.
+5. Sostituisci tutto il codice con `backend/src/worker.js`.
+6. Premi **Deploy**.
+
+## Controlli
+
+Apri:
 
 ```text
-https://passaggio-consegne-api.nomeaccount.workers.dev
+https://passaggio-consegne-api.vocidicassino.workers.dev/api/health
 ```
 
-Apri la webapp, entra in **Backend**, incolla l'URL API e inserisci la stessa chiave `APP_WRITE_KEY`.
-
-## Endpoint disponibili
-
-- `GET /api/health`
-- `GET /api/anomalies`
-- `POST /api/anomalies`
-- `PATCH /api/anomalies/:id`
-- `DELETE /api/anomalies/:id`
-- `GET /api/stats`
-
-Le modifiche richiedono l'header:
+Poi apri:
 
 ```text
-X-APP-KEY: tua_chiave
+https://passaggio-consegne-api.vocidicassino.workers.dev/api/logs?limit=10
 ```
+
+Se vedi una risposta JSON, lo storico è attivo.
+
+## Database
+
+Se hai già creato il database con lo schema precedente, non devi fare altro.
+Se parti da zero, usa `schema.sql`.
