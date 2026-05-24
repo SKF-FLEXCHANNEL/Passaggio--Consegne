@@ -1,0 +1,14 @@
+name = "passaggio-consegne-api"
+main = "src/worker.js"
+compatibility_date = "2026-05-23"
+
+[vars]
+# Metti qui il dominio GitHub Pages da cui userai la webapp.
+# Esempio: "https://marconeri70.github.io"
+# In prova puoi usare "*", ma in produzione è meglio il dominio esatto.
+ALLOWED_ORIGIN = "https://marconeri70.github.io"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "passaggio-consegne-db"
+database_id = "INSERISCI_QUI_DATABASE_ID"
