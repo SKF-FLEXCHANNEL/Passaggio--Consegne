@@ -6,7 +6,7 @@
   <title>Passaggio Consegne</title>
   <meta name="theme-color" content="#071827" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=9" />
+  <link rel="stylesheet" href="style.css?v=10" />
 </head>
 <body>
   <header class="topbar">
@@ -42,7 +42,7 @@
     <button type="button" data-menu-action="export">⇩ Esporta consegne</button>
     <button type="button" data-menu-action="print">⎙ Stampa / PDF</button>
     <button type="button" data-menu-action="backend">🔐 Area admin backend</button>
-    <p class="drawer-note">Le scritte nella foto non sono veri pulsanti: sopra ogni scritta c’è un’area cliccabile invisibile. Usa “Mostra aree cliccabili” per controllarle.</p>
+    <p class="drawer-note">Le aree cliccabili sono strette e posizionate solo sulle scritte, così non coprono i punti vicini. Usa “Mostra aree cliccabili” per controllarle.</p>
   </aside>
 
   <nav class="zone-tabs" aria-label="Selezione zona">
@@ -56,7 +56,7 @@
       <div class="panel-title-row">
         <div>
           <h2 id="zoneTitle">ZONA 1 - Layout interattivo</h2>
-          <p>Clicca direttamente sulle scritte del layout oppure usa il menu “Seleziona punto”.</p>
+          <p>Clicca sulle scritte del layout oppure usa il menu “Seleziona punto”.</p>
         </div>
         <div class="sync-status" id="syncStatus">Locale</div>
       </div>
@@ -87,7 +87,7 @@
       </div>
 
       <div class="hint-box">
-        Su telefono la mappa si adatta alla larghezza. Usa +/− per ingrandire. Le aree cliccabili sono invisibili: attiva “Mostra aree cliccabili” solo per controllare l’allineamento.
+        Su telefono la mappa si adatta alla larghezza. Usa +/− per ingrandire. Le aree cliccabili sono state ridotte alla grandezza delle scritte: attiva “Mostra aree cliccabili” solo per controllare l’allineamento.
       </div>
 
       <div class="layout-card">
@@ -184,6 +184,6 @@
     </form>
   </dialog>
 
-  <script src="app.js?v=9"></script>
+  <script src="app.js?v=10"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 /* Passaggio Consegne - Frontend condiviso Cloudflare Workers/D1
-   Versione 9: storico consegne, sincronizzazione automatica D1 e backend nascosto in area admin.
+   Versione 10: aree cliccabili precise sulle scritte del layout tecnico.
 */
-const APP_VERSION = '9.0.0-auto-sync-history-admin';
+const APP_VERSION = '10.0.0-precise-label-hotspots';
 const DEFAULT_API_URL = 'https://passaggio-consegne-api.vocidicassino.workers.dev';
 const AUTO_SYNC_MS = 15000;
 const LOG_STORAGE_KEY = 'pc_anomalie_log_local_v9';
@@ -14,108 +14,112 @@ const ZONES = {
     title: 'ZONA 1 - Layout interattivo',
     image: 'img/zona1.jpg',
     points: [
-      p('SG01','Porta 1 / SG01','Ingresso sicurezza zona 1', 11.2, 23.2, 9.2, 4.8),
-      p('OP30A','OP30A','Magazzino sfere / stazione OP30A', 21.1, 27.2, 7.4, 4.8),
-      p('OP30B','OP30B','Magazzino sfere / stazione OP30B', 27.1, 24.8, 7.4, 4.8),
-      p('OP30C','OP30C','Magazzino sfere / stazione OP30C', 32.5, 22.9, 7.4, 4.8),
-      p('OP30D','OP30D','Magazzino sfere / stazione OP30D', 39.7, 24.8, 7.4, 4.8),
-      p('OP30E','OP30E','Magazzino sfere / stazione OP30E', 46.7, 27.2, 7.4, 4.8),
-      p('SG03','Porta 3 / SG03','Varco superiore centrale', 52.8, 18.7, 8.8, 7.0),
-      p('SG05','Porta 5 / SG05','Varco superiore destro', 68.5, 27.4, 12.0, 4.8),
+      // V10: aree cliccabili strette e posizionate sulle scritte del disegno tecnico.
+      // Coordinate in percentuale: x, y, larghezza, altezza.
+      p('SG01','Porta 1 / SG01','Ingresso sicurezza zona 1', 12.4, 23.0, 5.7, 2.6),
+      p('OP30A','OP30A','Magazzino sfere / stazione OP30A', 22.6, 27.9, 5.2, 2.7),
+      p('OP30B','OP30B','Magazzino sfere / stazione OP30B', 27.6, 25.4, 5.2, 2.7),
+      p('OP30C','OP30C','Magazzino sfere / stazione OP30C', 30.8, 23.5, 5.1, 2.7),
+      p('OP30D','OP30D','Magazzino sfere / stazione OP30D', 37.2, 25.4, 5.2, 2.7),
+      p('OP30E','OP30E','Magazzino sfere / stazione OP30E', 41.0, 27.8, 5.2, 2.7),
+      p('SG03','Porta 3 / SG03','Varco superiore centrale', 53.4, 18.6, 5.9, 5.0),
+      p('SG05','Porta 5 / SG05','Varco superiore destro', 69.9, 27.1, 5.8, 2.5),
 
-      p('R01','R01','Robot R01', 24.9, 40.5, 6.8, 5.4),
-      p('R02','R02','Robot R02', 29.0, 63.7, 6.2, 5.3),
-      p('R03','R03','Robot R03', 30.1, 32.2, 7.0, 5.0),
-      p('R04','R04','Robot R04', 53.2, 32.4, 7.2, 5.2),
-      p('R05','R05','Robot R05', 47.8, 65.0, 6.8, 5.0),
-      p('R06','R06','Robot R06', 67.9, 38.1, 6.6, 5.0),
+      p('R01','R01','Robot R01', 26.4, 39.3, 3.1, 2.5),
+      p('R02','R02','Robot R02', 29.8, 65.1, 3.1, 2.5),
+      p('R03','R03','Robot R03', 30.3, 33.3, 3.3, 2.4),
+      p('R04','R04','Robot R04', 54.4, 33.3, 3.3, 2.4),
+      p('R05','R05','Robot R05', 48.3, 66.2, 3.1, 2.5),
+      p('R06','R06','Robot R06', 68.5, 39.0, 3.1, 2.5),
 
-      p('OP05A','OP05A','Prelievo anello esterno', 11.0, 47.8, 10.6, 4.4),
-      p('OP05B','OP05B','Prelievo anello esterno', 11.0, 52.8, 10.6, 4.4),
-      p('OP10A','OP10A','Misura anello esterno', 21.3, 56.0, 7.8, 5.0),
-      p('OP10B','OP10B','Misura anello interno', 29.1, 44.1, 7.8, 5.0),
-      p('OP20A','OP20A','Deposito/inserimento anelli - OP20A', 37.2, 58.0, 7.8, 5.0),
-      p('OP20B','OP20B','Deposito/inserimento anelli - OP20B', 36.4, 41.8, 8.0, 5.4),
-      p('OP40A','OP40A','Area fasatura/carico gabbia superiore OP40A', 47.4, 43.3, 8.2, 5.0),
-      p('OP40B','OP40B','Area fasatura/carico gabbia superiore OP40B', 58.2, 43.3, 8.2, 5.0),
-      p('OP60','OP60','Stazione OP60', 50.6, 48.0, 7.0, 4.8),
-      p('OP70','OP70','Stazione OP70', 52.5, 52.4, 7.0, 4.8),
-      p('OP80','OP80','Stazione OP80', 53.5, 65.1, 7.2, 4.8),
-      p('OP90','OP90','Stazione OP90', 63.7, 65.2, 7.2, 4.8),
-      p('OP100','OP100','Controllo visivo / area OP100', 64.3, 58.0, 8.4, 4.8),
-      p('OP110','OP110','Stazione OP110', 63.6, 51.7, 8.0, 4.8),
-      p('OP115','OP115','Stazione OP115', 68.7, 36.0, 7.6, 4.8),
-      p('OP120','OP120','Tavola centrale OP120', 58.1, 48.3, 9.2, 5.0),
-      p('OP125','OP125','Controllo visivo Keyence 3D / OP125', 73.5, 66.0, 8.3, 4.8),
-      p('OP125B','OP125B','Stazione OP125B', 69.7, 49.2, 8.5, 4.8),
-      p('KEYENCE','Keyence','Controllo visivo Keyence 3D', 72.5, 60.2, 9.5, 6.3),
-      p('LAVATRICE','Lavatrice','Lavatrice zona 1', 70.0, 73.3, 7.5, 15.5),
-      p('QE1','Q.E. Zona 1','Quadro elettrico zona 1', 83.4, 33.3, 6.4, 23.2),
-      p('R04-R05-R06','R04 / R05 / R06','Armadio/area robot R04-R05-R06', 83.8, 58.0, 6.9, 24.5),
-      p('SG02','Porta 2 / SG02','Varco inferiore centrale', 25.2, 80.0, 16.0, 4.8),
-      p('R01-R02-R03','R01-R02-R03','Armadio/area robot R01-R02-R03', 12.9, 87.8, 12.2, 4.4),
-      p('EMERGENZA','Emergenza Generale','Area emergenza generale', 6.4, 86.2, 8.5, 7.0),
-      p('PAR01','PAR 01','Protezione perimetrale PAR 01', 5.7, 72.8, 6.0, 9.8)
+      p('OP05A','OP05A','Prelievo anello esterno', 12.2, 48.4, 7.1, 2.4),
+      p('OP05B','OP05B','Prelievo anello esterno', 12.2, 53.2, 7.1, 2.4),
+      p('OP10A','OP10A','Misura anello esterno', 22.4, 55.4, 5.2, 2.6),
+      p('OP10B','OP10B','Misura anello interno', 29.0, 44.8, 5.3, 2.6),
+      p('OP20A','OP20A','Deposito/inserimento anelli - OP20A', 37.7, 58.2, 5.1, 2.6),
+      p('OP20B','OP20B','Deposito/inserimento anelli - OP20B', 37.7, 43.0, 5.1, 2.6),
+      p('OP40A','OP40A','Area fasatura/carico gabbia superiore OP40A', 47.6, 43.6, 5.3, 2.6),
+      p('OP40B','OP40B','Area fasatura/carico gabbia superiore OP40B', 59.2, 43.6, 5.3, 2.6),
+      p('OP60','OP60','Stazione OP60', 51.8, 48.9, 4.1, 2.5),
+      p('OP70','OP70','Stazione OP70', 52.9, 53.6, 4.1, 2.5),
+      p('OP80','OP80','Stazione OP80', 54.0, 66.1, 4.1, 2.5),
+      p('OP90','OP90','Stazione OP90', 64.1, 66.7, 4.1, 2.5),
+      p('OP100','OP100','Controllo visivo / area OP100', 64.9, 57.0, 5.0, 2.6),
+      p('OP110','OP110','Stazione OP110', 64.1, 51.2, 4.8, 2.6),
+      p('OP115','OP115','Stazione OP115', 69.1, 36.0, 4.8, 2.6),
+      p('OP120','OP120','Tavola centrale OP120', 59.1, 48.6, 5.0, 2.6),
+      p('OP125','OP125','Controllo visivo Keyence 3D / OP125', 74.7, 66.5, 4.9, 2.6),
+      p('OP125B','OP125B','Stazione OP125B', 70.6, 49.2, 5.3, 2.6),
+      p('KEYENCE','Keyence','Controllo visivo Keyence 3D', 70.8, 58.7, 5.2, 2.2),
+      p('LAVATRICE','Lavatrice','Lavatrice zona 1', 70.4, 74.0, 4.0, 9.0),
+      p('QE1','Q.E. Zona 1','Quadro elettrico zona 1', 85.0, 36.4, 3.0, 17.4),
+      p('R04-ARMADIO','R04','Armadio robot R04', 86.1, 60.8, 3.2, 7.6),
+      p('R04-R05-R06','R05-R06','Armadio robot R05-R06', 86.4, 70.2, 3.6, 8.3),
+      p('SG02','Porta 2 / SG02','Varco inferiore centrale', 27.3, 81.2, 5.8, 2.4),
+      p('R01-R02-R03','R01-R02-R03','Armadio/area robot R01-R02-R03', 13.8, 88.1, 7.4, 2.4),
+      p('EMERGENZA','Emergenza Generale','Area emergenza generale', 6.0, 83.0, 8.2, 4.0),
+      p('PAR01','PAR 01','Protezione perimetrale PAR 01', 7.1, 71.5, 3.0, 9.3)
     ]
   },
   2: {
     title: 'ZONA 2 - Layout interattivo',
     image: 'img/zona2.jpg',
     points: [
-      p('CONTROLLO-LAVATRICE-TOP','Controllo Lavatrice','Controllo lavatrice superiore', 23.0, 2.3, 12.0, 4.0),
-      p('QE2','Q.E. Zona 2','Quadro elettrico zona 2', 43.8, 14.0, 10.0, 4.8),
-      p('R07-R08-R09','R07-08-09','Armadio/area robot R07-R08-R09', 55.2, 11.7, 11.0, 5.0),
-      p('SG01','Porta 1 / SG01','Varco superiore destro zona 2', 70.2, 18.2, 11.0, 4.2),
-      p('LAVATRICE-SX','Lavatrice sinistra','Lavatrice lato sinistro', 15.2, 34.4, 10.5, 6.0),
-      p('OP170A+B','OP170A+B','Stazione OP170A+B', 33.7, 37.0, 6.5, 14.5),
-      p('R07','R07','Robot R07', 37.2, 60.2, 5.5, 8.0),
-      p('OP180','OP180','Stazione OP180', 50.0, 39.8, 6.5, 13.0),
-      p('R08','R08','Robot R08', 45.8, 60.2, 5.5, 8.0),
-      p('OP185','OP185','Stazione OP185', 50.9, 55.2, 5.6, 8.0),
-      p('OP190','OP190','Stazione OP190', 57.0, 35.0, 6.5, 14.5),
-      p('R09','R09','Robot R09', 56.0, 60.5, 6.0, 8.0),
-      p('OP125C','OP125C','Stazione OP125C', 63.8, 48.0, 8.5, 5.0),
-      p('OP135','OP135','Stazione OP135', 68.0, 40.0, 7.0, 5.5),
-      p('OP200','OP200','Lavatrice / stazione OP200', 79.5, 47.0, 8.5, 4.5),
-      p('LAVATRICE-DX','Lavatrice destra','Lavatrice lato destro', 77.0, 40.0, 10.5, 6.0),
-      p('CONTROLLO-LAVATRICE-DX','Controllo Lavatrice','Controllo lavatrice destro', 75.0, 66.5, 7.5, 18.0),
-      p('SG02','Porta 2 / SG02','Varco inferiore centrale zona 2', 53.5, 84.0, 12.5, 4.2),
-      p('PAR02','PAR 02','Protezione perimetrale PAR 02', 69.0, 87.2, 10.0, 4.0)
+      p('CONTROLLO-LAVATRICE-TOP','Controllo Lavatrice','Controllo lavatrice superiore', 24.2, 2.7, 10.8, 3.1),
+      p('QE2','Q.E. Zona 2','Quadro elettrico zona 2', 45.8, 13.6, 7.2, 2.6),
+      p('R07-R08-R09','R07-08-09','Armadio/area robot R07-R08-R09', 56.0, 11.7, 7.8, 2.7),
+      p('SG01','Porta 1 / SG01','Varco superiore destro zona 2', 72.8, 19.1, 5.4, 2.6),
+      p('LAVATRICE-SX','Lavatrice sinistra','Lavatrice lato sinistro', 16.1, 35.4, 6.0, 2.8),
+      p('OP170A+B','OP170A+B','Stazione OP170A+B', 34.0, 38.8, 2.6, 10.7),
+      p('R07','R07','Robot R07', 38.0, 63.2, 2.4, 5.0),
+      p('OP180','OP180','Stazione OP180', 50.3, 40.6, 2.5, 7.6),
+      p('R08','R08','Robot R08', 45.8, 63.2, 2.4, 5.0),
+      p('OP185','OP185','Stazione OP185', 52.7, 56.7, 2.5, 5.8),
+      p('OP190','OP190','Stazione OP190', 58.0, 35.0, 2.5, 7.5),
+      p('R09','R09','Robot R09', 56.3, 65.0, 2.4, 5.0),
+      p('OP125C','OP125C','Stazione OP125C', 64.7, 48.8, 4.8, 2.4),
+      p('OP135','OP135','Stazione OP135', 68.8, 41.0, 4.1, 2.6),
+      p('OP200','OP200','Lavatrice / stazione OP200', 82.0, 48.5, 4.5, 2.4),
+      p('LAVATRICE-DX','Lavatrice destra','Lavatrice lato destro', 79.3, 42.4, 6.2, 2.8),
+      p('CONTROLLO-LAVATRICE-DX','Controllo Lavatrice','Controllo lavatrice destro', 77.5, 68.0, 2.6, 15.5),
+      p('SG02','Porta 2 / SG02','Varco inferiore centrale zona 2', 56.5, 84.8, 5.8, 2.5),
+      p('PAR02','PAR 02','Protezione perimetrale PAR 02', 70.5, 87.2, 5.8, 2.4)
     ]
   },
   3: {
     title: 'ZONA 3 - Layout interattivo',
     image: 'img/zona3.jpg',
     points: [
-      p('SG01','Porta 1 / SG01','Varco superiore sinistro zona 3', 15.6, 20.5, 10.0, 4.5),
-      p('R10-R11-R12','R10-11-12','Armadio/area robot R10-R11-R12', 27.4, 10.2, 11.8, 4.8),
-      p('R13-R14','R13 / R14','Armadio/area robot R13/R14', 39.0, 10.2, 10.8, 4.8),
-      p('SG03','Porta 3 / SG03','Varco porta 3 zona 3', 46.0, 9.6, 7.6, 4.8),
-      p('SG05','Porta 5 / SG05','Varco porta 5 zona 3', 54.8, 9.6, 7.6, 4.8),
-      p('QE3','Q.E. Zona 3','Quadro elettrico zona 3', 67.2, 13.2, 12.0, 5.0),
-      p('SG07','Porta 7 / SG07','Varco destro zona 3', 79.3, 28.0, 10.0, 5.4),
-      p('LAVATRICE','Lavatrice','Lavatrice zona 3', 10.4, 39.2, 10.3, 5.2),
-      p('OP200','OP200','Stazione OP200', 12.3, 45.0, 7.2, 4.8),
-      p('R10','R10','Robot R10', 37.3, 28.0, 5.8, 4.6),
-      p('OP210','OP210','Stazione OP210', 35.4, 37.2, 5.6, 12.0),
-      p('OP220','OP220','Stazione OP220', 39.3, 40.2, 7.5, 6.0),
-      p('OP230','OP230','Stazione OP230', 28.0, 51.5, 7.6, 5.0),
-      p('OP240','OP240','Stazione OP240', 34.0, 50.0, 6.2, 7.8),
-      p('R11','R11','Robot R11', 36.0, 64.2, 6.0, 4.8),
-      p('R12','R12','Robot R12', 50.4, 64.2, 6.0, 4.8),
-      p('OP280A','OP280A','Stazione OP280A', 46.0, 27.8, 7.5, 5.2),
-      p('OP280B','OP280B','Stazione OP280B', 53.6, 27.8, 7.5, 5.2),
-      p('R13','R13','Robot R13', 55.0, 32.5, 5.8, 5.0),
-      p('OP270A','OP270A','Stazione OP270A', 45.3, 44.0, 7.5, 6.2),
-      p('OP270B','OP270B','Stazione OP270B', 55.8, 44.0, 7.5, 6.2),
-      p('R14','R14','Robot R14', 68.2, 39.0, 5.8, 5.0),
-      p('OP250','OP250','Stazione OP250', 65.0, 60.0, 7.5, 5.0),
-      p('CONTROLLO-LAVATRICE','Controllo Lavatrice','Controllo lavatrice zona 3', 8.8, 63.8, 7.0, 16.0),
-      p('SG02','Porta 2 / SG02','Varco inferiore zona 3', 30.7, 78.7, 10.8, 4.8),
-      p('PAR02','PAR 02','Protezione perimetrale PAR 02', 48.0, 81.2, 9.2, 4.2)
+      p('SG01','Porta 1 / SG01','Varco superiore sinistro zona 3', 16.8, 20.8, 5.8, 2.7),
+      p('R10-R11-R12','R10-11-12','Armadio/area robot R10-R11-R12', 29.0, 11.5, 7.0, 2.5),
+      p('R13-R14','R13 / R14','Armadio/area robot R13/R14', 39.0, 11.5, 6.3, 2.5),
+      p('SG03','Porta 3 / SG03','Varco porta 3 zona 3', 46.4, 10.5, 5.6, 2.8),
+      p('SG05','Porta 5 / SG05','Varco porta 5 zona 3', 55.3, 10.5, 5.5, 2.8),
+      p('QE3','Q.E. Zona 3','Quadro elettrico zona 3', 67.4, 13.6, 7.1, 2.4),
+      p('SG07','Porta 7 / SG07','Varco destro zona 3', 79.6, 28.0, 5.8, 2.7),
+      p('LAVATRICE','Lavatrice','Lavatrice zona 3', 10.9, 39.6, 6.0, 2.8),
+      p('OP200','OP200','Stazione OP200', 13.0, 44.9, 4.4, 2.4),
+      p('R10','R10','Robot R10', 37.6, 27.8, 2.4, 2.4),
+      p('OP210','OP210','Stazione OP210', 35.7, 38.0, 2.2, 7.0),
+      p('OP220','OP220','Stazione OP220', 39.7, 40.0, 2.2, 6.7),
+      p('OP230','OP230','Stazione OP230', 28.0, 50.8, 4.5, 2.5),
+      p('OP240','OP240','Stazione OP240', 34.2, 50.0, 2.2, 6.1),
+      p('R11','R11','Robot R11', 36.7, 63.5, 2.7, 2.5),
+      p('R12','R12','Robot R12', 51.0, 64.0, 2.7, 2.5),
+      p('OP280A','OP280A','Stazione OP280A', 46.8, 28.6, 4.6, 2.5),
+      p('OP280B','OP280B','Stazione OP280B', 54.5, 28.6, 4.7, 2.5),
+      p('R13','R13','Robot R13', 55.5, 33.3, 2.7, 2.5),
+      p('OP270A','OP270A','Stazione OP270A', 46.8, 44.0, 2.2, 6.8),
+      p('OP270B','OP270B','Stazione OP270B', 56.8, 44.0, 2.2, 6.8),
+      p('R14','R14','Robot R14', 68.3, 39.2, 2.7, 2.5),
+      p('OP250','OP250','Stazione OP250', 64.8, 60.3, 4.3, 2.5),
+      p('CONTROLLO-LAVATRICE','Controllo Lavatrice','Controllo lavatrice zona 3', 8.9, 64.0, 2.3, 13.5),
+      p('SG02','Porta 2 / SG02','Varco inferiore zona 3', 31.2, 78.7, 5.6, 2.7),
+      p('PAR02','PAR 02','Protezione perimetrale PAR 02', 47.2, 81.5, 6.0, 2.4)
     ]
   }
 };
+
 
 function p(id, label, description, x, y, w, h){ return {id,label,description,x,y,w,h}; }
 
@@ -317,7 +321,7 @@ function fallbackImageClick(e){
     const d = Math.hypot(cx-x, cy-y);
     if(d < bestD){ best = pt; bestD = d; }
   });
-  if(best && bestD < 6.5) selectPoint(best.id);
+  if(best && bestD < 2.2) selectPoint(best.id);
 }
 
 function selectPoint(pointId){

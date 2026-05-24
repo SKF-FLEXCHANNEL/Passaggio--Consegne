@@ -1,46 +1,27 @@
-# Passaggio Consegne - V9
+# Passaggio Consegne - V10 aree cliccabili precise
 
-Webapp per registrare anomalie di turno su layout interattivo Zona 1, Zona 2 e Zona 3.
+Questa versione mantiene la sincronizzazione Cloudflare Workers/D1 e corregge le aree cliccabili del layout tecnico.
 
-## Novità V9
+## Novità V10
 
-- Sincronizzazione automatica con Cloudflare D1 ogni 15 secondi.
-- Aggiornamento automatico quando riapri la pagina o torni sulla scheda.
-- Area backend nascosta nel menu come **Area admin backend**.
-- Storico consegne dal menu laterale.
-- Rimosso il sottotitolo sotto il titolo principale.
-- Mantenute aree cliccabili sui layout e menu di selezione punto.
+- Le aree cliccabili non sono più grandi come i macchinari.
+- Ogni area è stata ridotta alla grandezza della scritta presente nel disegno tecnico.
+- Ridotto il riconoscimento automatico del punto più vicino, per evitare aperture sbagliate quando si clicca tra due scritte.
+- Rimane disponibile il menu **Seleziona punto** per scegliere manualmente la stazione.
+- Il backend D1 resta compatibile con la V9. Non serve modificare il database.
 
-## Backend predefinito
+## Pubblicazione
 
-Nel file `app.js` è presente questa riga:
-
-```js
-const DEFAULT_API_URL = 'https://passaggio-consegne-api.vocidicassino.workers.dev';
-```
-
-Se il tuo Worker ha un URL diverso, modifica questa riga.
-
-## Aggiornamento Worker Cloudflare
-
-Per usare lo **Storico consegne** devi aggiornare anche il Worker Cloudflare con il file:
+Carica tutti i file su GitHub Pages e apri il sito aggiungendo:
 
 ```text
-backend/src/worker.js
-```
-
-Il database D1 non richiede nuove tabelle se hai già usato lo schema precedente, perché la tabella `anomaly_log` era già presente.
-
-## Pubblicazione su GitHub Pages
-
-Carica tutti i file nella root del repository GitHub Pages e apri il sito con:
-
-```text
-?v=9
+?v=10
 ```
 
 Esempio:
 
 ```text
-https://marconeri70.github.io/passaggio-consegne/?v=9
+https://marconeri70.github.io/passaggio-consegne/?v=10
 ```
+
+Se vedi ancora la vecchia versione, svuota la cache o disinstalla/reinstalla la PWA.
