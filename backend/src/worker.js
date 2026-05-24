@@ -1,6 +1,11 @@
 export default {
   async fetch(request, env) {
     const cors = corsHeaders(request, env);
+
+    if (!isAllowedOrigin(request)) {
+      return json({ error: 'Origine non autorizzata' }, 403, cors);
+    }
+
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
 
     try {
@@ -8,7 +13,7 @@ export default {
       const path = url.pathname.replace(/\/+$/, '') || '/';
 
       if (path === '/' || path === '/api/health') {
-        return json({ status: 'online', app: 'passaggio-consegne-api', version: '13-history-admin-delete', time: new Date().toISOString() }, 200, cors);
+        return json({ status: 'online', app: 'passaggio-consegne-api', version: '15-strict-skf-origin', time: new Date().toISOString() }, 200, cors);
       }
 
       if (path === '/api/admin/check' && request.method === 'POST') {
@@ -55,11 +60,18 @@ export default {
   }
 };
 
+const ALLOWED_ORIGINS = ['https://skf-flexchannel.github.io'];
+
+function isAllowedOrigin(request) {
+  const origin = request.headers.get('Origin') || '';
+  // Le richieste aperte direttamente nel browser o da strumenti di test possono non avere Origin.
+  if (!origin) return true;
+  return ALLOWED_ORIGINS.includes(origin);
+}
+
 function corsHeaders(request, env) {
   const origin = request.headers.get('Origin') || '';
-  const allowedRaw = env.ALLOWED_ORIGIN || '*';
-  const allowed = allowedRaw.split(',').map(s => s.trim()).filter(Boolean);
-  const allowOrigin = allowed.includes('*') ? '*' : (allowed.includes(origin) ? origin : allowed[0] || '*');
+  const allowOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
   return {
     'Access-Control-Allow-Origin': allowOrigin,
     'Access-Control-Allow-Methods': 'GET,POST,PATCH,DELETE,OPTIONS',
