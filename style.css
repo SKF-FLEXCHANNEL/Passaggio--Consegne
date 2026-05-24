@@ -60,3 +60,7 @@ select,input,textarea{width:100%;border:1px solid var(--line);border-radius:12px
 }
 @media(max-width:520px){.brand{gap:10px}.brand h1{font-size:22px}.brand p{font-size:13px}.icon-btn{width:42px;height:42px}.top-actions .clock{font-size:14px}.top-actions .ghost-btn{font-size:13px}.zone-tab{min-width:120px}.app-shell{padding-left:10px;padding-right:10px}.layout-card{border-radius:10px}.form-grid{grid-template-columns:1fr}}
 @media print{.topbar,.zone-tabs,.toolbar,.hint-box,.detail-panel,.bottom-bar,.side-drawer,.drawer-backdrop{display:none}.app-shell{display:block;padding:0}.main-panel{box-shadow:none;border:0;background:white;color:black}.layout-card{border:0;max-height:none;overflow:visible}.map-inner{width:100%!important}}
+
+/* V9 - storico e area admin nascosta */
+.history-card{background:#0b2239;color:#f8fafc;border:1px solid rgba(148,163,184,.26);border-left:5px solid #38bdf8;border-radius:14px;padding:12px;margin:10px 0;box-shadow:0 10px 22px rgba(0,0,0,.22)}
+.history-top{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px}.history-top span{color:#cbd5e1;font-size:12px}.history-card p{margin:7px 0;color:#e2e8f0}.history-card button{border:1px solid rgba(148,163,184,.35);border-radius:9px;background:#102b49;color:#fff;padding:8px 10px;font-weight:700}.history-card small{color:#94a3b8}.history-list{padding-bottom:20px}.sync-status.online::before{content:'● ';}.sync-status.offline::before{content:'● ';}.hidden{display:none!important}

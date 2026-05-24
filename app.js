@@ -1,7 +1,10 @@
 /* Passaggio Consegne - Frontend condiviso Cloudflare Workers/D1
-   Versione 8: menu laterale completo, elenco globale anomalie e apertura segnalazioni dal menu.
+   Versione 9: storico consegne, sincronizzazione automatica D1 e backend nascosto in area admin.
 */
-const APP_VERSION = '8.0.0-menu-global-list-fix';
+const APP_VERSION = '9.0.0-auto-sync-history-admin';
+const DEFAULT_API_URL = 'https://passaggio-consegne-api.vocidicassino.workers.dev';
+const AUTO_SYNC_MS = 15000;
+const LOG_STORAGE_KEY = 'pc_anomalie_log_local_v9';
 const STORAGE_KEY = 'pc_anomalie_local_v7';
 const API_URL_KEY = 'pc_api_url';
 const API_KEY_KEY = 'pc_api_key';
@@ -124,9 +127,11 @@ const state = {
   showAreas: false,
   mapFocus: false,
   listMode: 'point',
-  apiUrl: localStorage.getItem(API_URL_KEY) || '',
+  apiUrl: localStorage.getItem(API_URL_KEY) || DEFAULT_API_URL,
   apiKey: localStorage.getItem(API_KEY_KEY) || '',
-  loading: false
+  loading: false,
+  logs: [],
+  autoSyncTimer: null
 };
 
 const $ = (id) => document.getElementById(id);
@@ -136,6 +141,7 @@ window.addEventListener('DOMContentLoaded', () => {
   tickClock(); setInterval(tickClock, 1000);
   renderZone();
   loadAnomalies();
+  startAutoSync();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('service-worker.js').catch(()=>{});
 });
 
@@ -191,13 +197,44 @@ function handleMenuAction(action){
   if(action === 'layout') { state.listMode = 'point'; resetDetail(); return window.scrollTo({top:0,behavior:'smooth'}); }
   if(action === 'open') return showAllAnomalies('aperta');
   if(action === 'all') return showAllAnomalies('tutte');
+  if(action === 'history') return showHistory();
   if(action === 'refresh') return loadAnomalies();
   if(action === 'export') return exportTxt();
   if(action === 'print') return window.print();
-  if(action === 'backend') return openBackendDialog();
+  if(action === 'backend') return openBackendDialog(true);
   if(action === 'areas') { $('showAreas').checked = !$('showAreas').checked; toggleAreas($('showAreas').checked); return; }
   if(action === 'focus') return toggleMapFocus();
 }
+function startAutoSync(){
+  if(state.autoSyncTimer) clearInterval(state.autoSyncTimer);
+  state.autoSyncTimer = setInterval(() => {
+    if(document.hidden) return;
+    if(state.apiUrl) loadAnomalies({silent:true, background:true});
+  }, AUTO_SYNC_MS);
+  window.addEventListener('focus', () => { if(state.apiUrl) loadAnomalies({silent:true, background:true}); });
+  document.addEventListener('visibilitychange', () => {
+    if(!document.hidden && state.apiUrl) loadAnomalies({silent:true, background:true});
+  });
+}
+
+async function showHistory(){
+  state.listMode = 'history';
+  state.selectedPoint = null;
+  document.querySelectorAll('.hotspot').forEach(el => el.classList.remove('selected'));
+  $('pointSelect').value = '';
+  $('detailPanel').classList.add('open');
+  $('newAnomalyBtn').classList.add('hidden');
+  $('anomalyForm').classList.add('hidden');
+  $('detailTitle').textContent = 'Storico consegne';
+  $('detailSubtitle').textContent = 'Cronologia creazioni, modifiche stato ed eliminazioni';
+  $('pointSummary').innerHTML = '<b>Storico condiviso</b><br>Qui vedi le attività registrate sul database D1. La lista si aggiorna quando apri questa sezione.';
+  $('pointCount').textContent = '...';
+  $('anomalyList').className = 'anomaly-list empty';
+  $('anomalyList').textContent = 'Caricamento storico...';
+  await loadLogs();
+  renderHistory();
+}
+
 function showAllAnomalies(status='tutte'){
   state.listMode = 'all';
   state.selectedPoint = null;
@@ -331,9 +368,10 @@ function closeDetail(){
   $('detailPanel').classList.remove('open');
 }
 
-async function loadAnomalies(){
+async function loadAnomalies(options={}){
+  const silent = Boolean(options.silent);
   state.loading = true;
-  updateSyncStatus('Caricamento...', '');
+  if(!silent) updateSyncStatus('Caricamento...', '');
   try{
     if(state.apiUrl){
       const data = await apiFetch('/api/anomalies?limit=1000');
@@ -348,7 +386,7 @@ async function loadAnomalies(){
     console.error(err);
     state.anomalies = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
     updateSyncStatus('Offline / locale', 'offline');
-    toast('Backend non raggiungibile: uso dati locali.');
+    if(!silent) toast('Backend non raggiungibile: uso dati locali.');
   }finally{
     state.loading = false;
     renderAnomalies();
@@ -361,6 +399,11 @@ function renderAnomalies(){
   $('openCount').textContent = open;
   const drawerOpen = $('drawerOpenCount');
   if(drawerOpen) drawerOpen.textContent = open;
+
+  if(state.listMode === 'history'){
+    renderHistory();
+    return;
+  }
 
   if(state.listMode === 'all'){
     const allItems = filteredAnomaliesForAll(status);
@@ -389,6 +432,80 @@ function renderAnomalies(){
   $('pointCount').textContent = pointItems.length;
   $('newAnomalyBtn').classList.remove('hidden');
   renderListItems(pointItems, false, 'Nessuna anomalia per questo punto.');
+}
+
+
+async function loadLogs(){
+  try{
+    if(state.apiUrl){
+      const data = await apiFetch('/api/logs?limit=500');
+      state.logs = data.items || [];
+    }else{
+      state.logs = JSON.parse(localStorage.getItem(LOG_STORAGE_KEY) || '[]');
+    }
+  }catch(err){
+    console.error(err);
+    state.logs = JSON.parse(localStorage.getItem(LOG_STORAGE_KEY) || '[]');
+  }
+}
+
+function renderHistory(){
+  if(state.listMode !== 'history') return;
+  const logs = (state.logs || []).slice().sort((a,b)=> new Date(b.created_at||0) - new Date(a.created_at||0));
+  $('detailPanel').classList.add('open');
+  $('detailTitle').textContent = 'Storico consegne';
+  $('detailSubtitle').textContent = 'Ultime attività registrate';
+  $('pointSummary').innerHTML = `<b>Sincronizzazione:</b> ${state.apiUrl ? 'Cloudflare D1' : 'Locale'}<br><small>Lo storico contiene inserimenti, cambi stato, aggiornamenti ed eliminazioni.</small>`;
+  $('pointCount').textContent = logs.length;
+  $('newAnomalyBtn').classList.add('hidden');
+  if(!logs.length){
+    $('anomalyList').className = 'anomaly-list empty';
+    $('anomalyList').textContent = 'Nessuno storico disponibile.';
+    return;
+  }
+  $('anomalyList').className = 'anomaly-list history-list';
+  $('anomalyList').innerHTML = logs.map(log => historyCard(log)).join('');
+  $('anomalyList').querySelectorAll('[data-open-history-point]').forEach(btn => btn.addEventListener('click', () => {
+    openAnomalyPoint(btn.dataset.zone, btn.dataset.pointId);
+  }));
+}
+
+function historyCard(log){
+  const action = String(log.action || '').toLowerCase();
+  const badge = action.includes('delete') ? 'Eliminazione' : action.includes('create') ? 'Creazione' : action.includes('status') ? 'Cambio stato' : action.includes('update') ? 'Aggiornamento' : (log.action || 'Evento');
+  const zone = log.zone || '';
+  const point = log.point_id || '';
+  const canOpen = zone && point;
+  return `<article class="history-card">
+    <div class="history-top"><b>${escapeHtml(badge)}</b><span>${formatDate(log.created_at)}</span></div>
+    <p>${escapeHtml(historyText(log))}</p>
+    ${log.status ? `<p><b>Stato:</b> ${escapeHtml(labelStatus(log.status))}</p>` : ''}
+    ${log.operator_name ? `<p><b>Operatore:</b> ${escapeHtml(log.operator_name)}</p>` : ''}
+    ${canOpen ? `<button data-open-history-point="1" data-zone="${escapeAttr(zone)}" data-point-id="${escapeAttr(point)}">Apri punto ${escapeHtml(log.point_label || point)}</button>` : `<small>Dettaglio punto non disponibile per questo evento.</small>`}
+  </article>`;
+}
+
+function historyText(log){
+  const loc = [log.zone, log.point_label || log.point_id].filter(Boolean).join(' • ');
+  const title = log.title ? ` — ${log.title}` : '';
+  return `${loc || 'Evento registro'}${title}`;
+}
+
+function pushLocalLog(anomaly, action, status){
+  const logs = JSON.parse(localStorage.getItem(LOG_STORAGE_KEY) || '[]');
+  logs.unshift({
+    id: crypto.randomUUID(),
+    anomaly_id: anomaly.id,
+    created_at: new Date().toISOString(),
+    action,
+    status: status || anomaly.status || '',
+    operator_name: anomaly.operator_name || '',
+    zone: anomaly.zone || '',
+    point_id: anomaly.point_id || '',
+    point_label: anomaly.point_label || '',
+    title: anomaly.title || ''
+  });
+  localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logs.slice(0,500)));
 }
 
 function filteredAnomaliesForAll(status){
@@ -485,6 +602,7 @@ async function saveAnomaly(e){
       saved = {item: {...body, id: crypto.randomUUID(), created_at: new Date().toISOString(), updated_at: new Date().toISOString()}};
       state.anomalies.unshift(saved.item);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state.anomalies));
+      pushLocalLog(saved.item, 'create', saved.item.status);
     }
     e.target.reset();
     $('aPriority').value = 'media';
@@ -502,8 +620,11 @@ async function updateAnomalyStatus(id, status){
       const res = await apiFetch(`/api/anomalies/${encodeURIComponent(id)}`, {method:'PATCH', body: JSON.stringify({status})});
       state.anomalies = state.anomalies.map(a => a.id === id ? res.item : a);
     }else{
+      const old = state.anomalies.find(a => a.id === id) || {};
       state.anomalies = state.anomalies.map(a => a.id === id ? {...a, status, updated_at:new Date().toISOString()} : a);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state.anomalies));
+      const updated = state.anomalies.find(a => a.id === id) || old;
+      pushLocalLog(updated, `status:${old.status || ''}->${status}`, status);
     }
     renderAnomalies();
   }catch(err){ toast('Errore aggiornamento stato.'); }
@@ -512,7 +633,9 @@ async function updateAnomalyStatus(id, status){
 async function deleteAnomaly(id){
   if(!confirm('Eliminare questa anomalia?')) return;
   try{
+    const old = state.anomalies.find(a => a.id === id);
     if(state.apiUrl) await apiFetch(`/api/anomalies/${encodeURIComponent(id)}`, {method:'DELETE'});
+    if(!state.apiUrl && old) pushLocalLog(old, 'delete', old.status);
     state.anomalies = state.anomalies.filter(a => a.id !== id);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state.anomalies));
     renderAnomalies();
@@ -530,25 +653,30 @@ async function apiFetch(path, opts={}){
   return data;
 }
 
-function openBackendDialog(){
-  $('apiUrlInput').value = state.apiUrl;
+function openBackendDialog(adminMode=false){
+  if(adminMode && state.apiKey){
+    const pin = prompt('Area admin: inserisci la chiave/PIN di scrittura.');
+    if(pin !== state.apiKey){ toast('PIN admin non valido.'); return; }
+  }
+  $('apiUrlInput').value = state.apiUrl || DEFAULT_API_URL;
   $('apiKeyInput').value = state.apiKey;
   $('backendMsg').textContent = '';
   $('backendDialog').showModal();
 }
 function saveBackendConfig(e){
   e.preventDefault();
-  state.apiUrl = $('apiUrlInput').value.trim().replace(/\/$/,'');
+  state.apiUrl = ($('apiUrlInput').value.trim() || DEFAULT_API_URL).replace(/\/$/,'');
   state.apiKey = $('apiKeyInput').value.trim();
   localStorage.setItem(API_URL_KEY, state.apiUrl);
   localStorage.setItem(API_KEY_KEY, state.apiKey);
   $('backendMsg').textContent = 'Configurazione salvata.';
+  startAutoSync();
   loadAnomalies();
 }
 async function testBackend(e){
   e.preventDefault();
   const oldUrl = state.apiUrl, oldKey = state.apiKey;
-  state.apiUrl = $('apiUrlInput').value.trim().replace(/\/$/,'');
+  state.apiUrl = ($('apiUrlInput').value.trim() || DEFAULT_API_URL).replace(/\/$/,'');
   state.apiKey = $('apiKeyInput').value.trim();
   try{ const res = await apiFetch('/api/health'); $('backendMsg').textContent = 'Test OK: ' + (res.status || 'online'); }
   catch(err){ $('backendMsg').textContent = 'Test fallito: ' + err.message; }

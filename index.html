@@ -6,7 +6,7 @@
   <title>Passaggio Consegne</title>
   <meta name="theme-color" content="#071827" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=8" />
+  <link rel="stylesheet" href="style.css?v=9" />
 </head>
 <body>
   <header class="topbar">
@@ -18,7 +18,7 @@
     </div>
     <div class="top-actions">
       <span id="clock" class="clock">--</span>
-      <button id="backendBtn" class="ghost-btn">⚙ Backend</button>
+      <button id="backendBtn" class="ghost-btn hidden" title="Area admin">⚙ Admin</button>
     </div>
   </header>
 
@@ -34,13 +34,14 @@
     <button type="button" class="drawer-stat drawer-alert" data-menu-action="open"><span class="dot red"></span><b id="drawerOpenCount">0</b> anomalie aperte</button>
     <button type="button" data-menu-action="layout">▦ Layout linea</button>
     <button type="button" data-menu-action="all">☷ Tutte le anomalie</button>
+    <button type="button" data-menu-action="history">◷ Storico consegne</button>
     <button type="button" data-menu-action="open">● Solo anomalie aperte</button>
     <button type="button" data-menu-action="refresh">↻ Aggiorna da D1</button>
     <button type="button" data-menu-action="areas">◎ Mostra/Nascondi aree cliccabili</button>
     <button type="button" data-menu-action="focus">⛶ Mappa grande</button>
     <button type="button" data-menu-action="export">⇩ Esporta consegne</button>
     <button type="button" data-menu-action="print">⎙ Stampa / PDF</button>
-    <button type="button" data-menu-action="backend">⚙ Backend Cloudflare</button>
+    <button type="button" data-menu-action="backend">🔐 Area admin backend</button>
     <p class="drawer-note">Le scritte nella foto non sono veri pulsanti: sopra ogni scritta c’è un’area cliccabile invisibile. Usa “Mostra aree cliccabili” per controllarle.</p>
   </aside>
 
@@ -166,8 +167,8 @@
 
   <dialog id="backendDialog" class="dialog">
     <form method="dialog" class="dialog-card">
-      <h3>Configurazione backend condiviso</h3>
-      <p>Inserisci l’URL del Worker Cloudflare e la chiave impostata come secret <b>APP_WRITE_KEY</b>.</p>
+      <h3>Area admin - Backend condiviso</h3>
+      <p>La configurazione Cloudflare resta nascosta agli operatori. Inserisci/modifica l’URL del Worker e la chiave impostata come secret <b>APP_WRITE_KEY</b>.</p>
       <label>URL API Cloudflare Worker
         <input id="apiUrlInput" placeholder="https://passaggio-consegne-api.tuo-account.workers.dev" />
       </label>
@@ -183,6 +184,6 @@
     </form>
   </dialog>
 
-  <script src="app.js?v=8"></script>
+  <script src="app.js?v=9"></script>
 </body>
 </html>

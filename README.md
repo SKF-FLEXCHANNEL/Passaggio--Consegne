@@ -1,60 +1,46 @@
-# Passaggio Consegne - V7
+# Passaggio Consegne - V9
 
-Webapp per registrare anomalie e passaggio consegne con layout interattivo di Zona 1, Zona 2 e Zona 3.
+Webapp per registrare anomalie di turno su layout interattivo Zona 1, Zona 2 e Zona 3.
 
-## Novità V7
+## Novità V9
 
-- Menu laterale funzionante tramite pulsante ☰ vicino al titolo.
-- Aree cliccabili riallineate sulle scritte presenti nelle immagini.
-- Comando **Mostra aree cliccabili** per controllare dove si può cliccare.
-- Pulsante **Mappa grande** dal menu laterale.
-- Compatibile con backend Cloudflare Workers/D1 già configurato.
-- Cache aggiornata a `v=7`.
+- Sincronizzazione automatica con Cloudflare D1 ogni 15 secondi.
+- Aggiornamento automatico quando riapri la pagina o torni sulla scheda.
+- Area backend nascosta nel menu come **Area admin backend**.
+- Storico consegne dal menu laterale.
+- Rimosso il sottotitolo sotto il titolo principale.
+- Mantenute aree cliccabili sui layout e menu di selezione punto.
+
+## Backend predefinito
+
+Nel file `app.js` è presente questa riga:
+
+```js
+const DEFAULT_API_URL = 'https://passaggio-consegne-api.vocidicassino.workers.dev';
+```
+
+Se il tuo Worker ha un URL diverso, modifica questa riga.
+
+## Aggiornamento Worker Cloudflare
+
+Per usare lo **Storico consegne** devi aggiornare anche il Worker Cloudflare con il file:
+
+```text
+backend/src/worker.js
+```
+
+Il database D1 non richiede nuove tabelle se hai già usato lo schema precedente, perché la tabella `anomaly_log` era già presente.
 
 ## Pubblicazione su GitHub Pages
 
-Carica tutti i file nella repository GitHub Pages, mantenendo la struttura:
+Carica tutti i file nella root del repository GitHub Pages e apri il sito con:
 
 ```text
-index.html
-style.css
-app.js
-manifest.json
-service-worker.js
-img/zona1.jpg
-img/zona2.jpg
-img/zona3.jpg
-icons/icon-192.png
-icons/icon-512.png
-backend/...
-```
-
-Dopo il caricamento, apri il sito aggiungendo:
-
-```text
-?v=7
+?v=9
 ```
 
 Esempio:
 
 ```text
-https://marconeri70.github.io/passaggio-consegne/?v=7
+https://marconeri70.github.io/passaggio-consegne/?v=9
 ```
-
-Se il telefono mostra ancora la vecchia versione, svuota la cache del sito oppure disinstalla e reinstalla la PWA.
-
-## Backend Cloudflare
-
-Il backend resta quello presente nella cartella `backend`.
-Nella webapp premi **Backend** e inserisci:
-
-- URL Worker Cloudflare
-- chiave `APP_WRITE_KEY`
-
-
-
-## Aggiornamento V8
-- rimosso il sottotitolo sotto Passaggio Consegne.
-- il menu laterale apre l'elenco globale delle anomalie.
-- le anomalie nel menu/elenco sono cliccabili e portano al punto corretto della mappa.
-- `Tutte le anomalie` mostra davvero tutte le segnalazioni, mentre `Solo anomalie aperte` mostra tutte quelle attive.
