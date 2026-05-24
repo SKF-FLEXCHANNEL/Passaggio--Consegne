@@ -1,7 +1,7 @@
 /* Passaggio Consegne - Frontend condiviso Cloudflare Workers/D1
-   Versione 11: report anomalie frequenti + PIN unico app + admin nascosto.
+   Versione 12: report anomalie frequenti + PIN unico app + pulsante anomalie aperte cliccabile.
 */
-const APP_VERSION = '11.0.0-report-pin';
+const APP_VERSION = '12.0.0-bottom-open-click';
 const DEFAULT_API_URL = 'https://passaggio-consegne-api.vocidicassino.workers.dev';
 const AUTO_SYNC_MS = 15000;
 const LOG_STORAGE_KEY = 'pc_anomalie_log_local_v9';
@@ -173,6 +173,10 @@ function bindEvents(){
   $('refreshBtn').addEventListener('click', loadAnomalies);
   $('exportBtn').addEventListener('click', exportTxt);
   $('printBtn').addEventListener('click', () => window.print());
+  const openAnomaliesBtn = $('openAnomaliesBtn');
+  if(openAnomaliesBtn){
+    openAnomaliesBtn.addEventListener('click', () => showAllAnomalies('aperta'));
+  }
   $('backendBtn').addEventListener('click', openBackendDialog);
   $('saveBackend').addEventListener('click', saveBackendConfig);
   $('testBackend').addEventListener('click', testBackend);
@@ -544,6 +548,12 @@ function renderAnomalies(){
   const status = $('statusFilter').value;
   const open = state.anomalies.filter(a => a.status === 'aperta').length;
   $('openCount').textContent = open;
+  const openBtn = $('openAnomaliesBtn');
+  if(openBtn){
+    openBtn.classList.toggle('has-open', open > 0);
+    openBtn.title = open > 0 ? `${open} anomalie aperte - clicca per visualizzarle` : 'Nessuna anomalia aperta';
+    openBtn.setAttribute('aria-label', open > 0 ? `${open} anomalie aperte, clicca per visualizzarle` : 'Nessuna anomalia aperta');
+  }
   const drawerOpen = $('drawerOpenCount');
   if(drawerOpen) drawerOpen.textContent = open;
 

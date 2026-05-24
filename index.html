@@ -6,7 +6,7 @@
   <title>Passaggio Consegne</title>
   <meta name="theme-color" content="#071827" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=11" />
+  <link rel="stylesheet" href="style.css?v=12" />
 </head>
 <body>
   <header class="topbar">
@@ -174,7 +174,7 @@
   </main>
 
   <footer class="bottom-bar">
-    <div class="stat-card red"><span></span><b id="openCount">0</b> anomalie aperte</div>
+    <button id="openAnomaliesBtn" type="button" class="stat-card red bottom-open-btn" title="Apri anomalie aperte"><span></span><b id="openCount">0</b> anomalie aperte</button>
     <div>Ultimo aggiornamento: <b id="lastUpdate">--</b></div>
     <div class="footer-actions">
       <button id="refreshBtn" class="ghost-btn">↻ Aggiorna</button>
@@ -217,6 +217,6 @@
     </form>
   </dialog>
 
-  <script src="app.js?v=11"></script>
+  <script src="app.js?v=12"></script>
 </body>
 </html>
