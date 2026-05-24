@@ -1,235 +1,167 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Passaggio Consegne</title>
   <meta name="theme-color" content="#071827" />
-  <meta name="description" content="Passaggio consegne con layout interattivo: anomalie turno per zona e OP" />
-  <title>Passaggio Consegne - Layout Interattivo</title>
   <link rel="manifest" href="manifest.json" />
-  <link rel="icon" href="icons/icon-192.png" />
-  <link rel="stylesheet" href="style.css?v=5" />
+  <link rel="stylesheet" href="style.css?v=6" />
 </head>
 <body>
-  <div class="app-shell">
-    <aside class="sidebar" id="sidebar">
-      <div class="brand">
-        <div class="brand-logo">⚙</div>
-        <div>
-          <strong>Passaggio<br />Consegne</strong>
-          <small>Registro anomalie turno</small>
-        </div>
+  <header class="topbar">
+    <div class="brand">
+      <button id="menuBtn" class="icon-btn" title="Menu">☰</button>
+      <div>
+        <h1>Passaggio Consegne</h1>
+        <p>Registro anomalie condiviso con Cloudflare Workers/D1</p>
       </div>
-
-      <nav class="menu">
-        <button class="menu-btn active" data-view="layout">▦ Layout</button>
-        <button class="menu-btn" data-view="anomalie">⚠ Anomalie</button>
-        <button class="menu-btn" data-view="storico">↺ Storico</button>
-        <button class="menu-btn" data-view="report">▣ Report</button>
-        <button class="menu-btn" data-view="settings">⚙ Impostazioni</button>
-      </nav>
-
-      <button class="collapse-btn" id="collapseBtn">‹ Riduci menu</button>
-    </aside>
-
-    <div class="main">
-      <header class="topbar">
-        <button class="hamburger" id="hamburger" aria-label="Apri menu">☰</button>
-        <div class="title-block">
-          <h1>Passaggio Consegne</h1>
-          <p>Registro anomalie turno con layout cliccabile sulle scritte di Zona 1, Zona 2 e Zona 3</p>
-        </div>
-        <div class="top-actions">
-          <span id="clock">--:--</span>
-          <button id="installBtn" class="ghost hidden">Installa</button>
-        </div>
-      </header>
-
-      <section class="zone-tabs" aria-label="Seleziona zona">
-        <button class="zone-tab active" data-zone="zona1">Zona 1</button>
-        <button class="zone-tab" data-zone="zona2">Zona 2</button>
-        <button class="zone-tab" data-zone="zona3">Zona 3</button>
-      </section>
-
-      <main class="content">
-        <section class="layout-view view active" id="view-layout">
-          <div class="section-head">
-            <div>
-              <h2 id="zoneTitle">ZONA 1 - Layout interattivo</h2>
-              <p>Tocca direttamente la scritta presente sul disegno. Se non prendi il punto preciso, l’app apre comunque il punto più vicino.</p>
-            </div>
-            <div class="filters">
-              <span>Stato:</span>
-              <button class="filter active" data-filter="tutte">Tutte</button>
-              <button class="filter" data-filter="aperta">Aperte</button>
-              <button class="filter" data-filter="lavorazione">In lavorazione</button>
-              <button class="filter" data-filter="risolta">Risolte</button>
-            </div>
-          </div>
-
-          <div class="workspace">
-            <div class="map-card">
-              <div class="map-tools">
-                <button id="zoomOut" title="Riduci">−</button>
-                <button id="zoomReset" title="Ripristina">100%</button>
-                <button id="zoomIn" title="Ingrandisci">+</button>
-                <label class="switch-label" title="Visualizza le zone invisibili cliccabili">
-                  <input type="checkbox" id="hotspotToggle" /> Mostra aree cliccabili
-                </label>
-              </div>
-
-              <div class="quick-select">
-                <label for="pointSelect">Seleziona punto:</label>
-                <select id="pointSelect"></select>
-                <span id="clickInfo">Click: --</span>
-              </div>
-
-              <div class="map-help">
-                Le scritte sono dentro l’immagine, quindi il click viene riconosciuto tramite aree trasparenti e ricerca del punto più vicino. Attiva “Mostra aree cliccabili” per controllare l’allineamento.
-              </div>
-
-              <div class="map-scroll" id="mapScroll">
-                <div class="layout-stage" id="layoutStage">
-                  <img id="layoutImage" src="img/zona1.jpg" alt="Layout zona" draggable="false" />
-                  <div id="hotspotsLayer" class="hotspots-layer"></div>
-                </div>
-              </div>
-            </div>
-
-            <aside class="detail-panel" id="detailPanel" aria-live="polite">
-              <button class="panel-close" id="closePanel">×</button>
-              <div id="panelContent" class="empty-panel">
-                <h3>Dettaglio punto</h3>
-                <p>Seleziona una scritta sul layout per vedere o inserire anomalie.</p>
-              </div>
-            </aside>
-          </div>
-        </section>
-
-        <section class="view" id="view-anomalie">
-          <div class="section-head">
-            <div>
-              <h2>Tutte le anomalie</h2>
-              <p>Elenco completo delle anomalie registrate.</p>
-            </div>
-          </div>
-          <div id="allAnomalies" class="list-card"></div>
-        </section>
-
-        <section class="view" id="view-storico">
-          <div class="section-head">
-            <div>
-              <h2>Storico consegne</h2>
-              <p>Consulta gli interventi chiusi e le note dei turni precedenti.</p>
-            </div>
-          </div>
-          <div id="historyList" class="list-card"></div>
-        </section>
-
-        <section class="view" id="view-report">
-          <div class="section-head">
-            <div>
-              <h2>Report turno</h2>
-              <p>Riepilogo pronto per il passaggio consegne.</p>
-            </div>
-          </div>
-          <div class="report-grid">
-            <div class="stat-card danger"><b id="statAperte">0</b><span>Aperte</span></div>
-            <div class="stat-card warn"><b id="statLav">0</b><span>In lavorazione</span></div>
-            <div class="stat-card ok"><b id="statRisolte">0</b><span>Risolte</span></div>
-            <div class="stat-card"><b id="statTotali">0</b><span>Totali</span></div>
-          </div>
-          <textarea id="reportText" readonly class="report-text"></textarea>
-        </section>
-
-        <section class="view" id="view-settings">
-          <div class="section-head">
-            <div>
-              <h2>Impostazioni</h2>
-              <p>Gestione dati locali e backup.</p>
-            </div>
-          </div>
-          <div class="settings-card">
-            <button id="exportJson" class="primary">Esporta backup JSON</button>
-            <label class="file-import">Importa backup JSON<input id="importJson" type="file" accept="application/json" /></label>
-            <button id="exportText" class="secondary">Esporta passaggio consegne TXT</button>
-            <button id="printBtn" class="secondary">Stampa / salva PDF</button>
-            <button id="clearAll" class="danger-btn">Cancella tutto il registro</button>
-          </div>
-        </section>
-      </main>
-
-      <footer class="bottom-bar">
-        <div class="status-pill"><span class="dot danger"></span><b id="footerOpen">0</b> anomalie aperte</div>
-        <div>Ultimo aggiornamento: <span id="lastUpdate">--</span></div>
-        <div class="footer-actions">
-          <button id="quickExport">⇩ Esporta</button>
-          <button id="quickPrint">⎙ Stampa</button>
-        </div>
-      </footer>
     </div>
-  </div>
+    <div class="top-actions">
+      <span id="clock" class="clock">--</span>
+      <button id="backendBtn" class="ghost-btn">⚙ Backend</button>
+    </div>
+  </header>
 
-  <dialog id="anomalyDialog" class="dialog">
-    <form method="dialog" id="anomalyForm" class="dialog-box">
-      <div class="dialog-head">
-        <h3 id="dialogTitle">Nuova anomalia</h3>
-        <button value="cancel" class="icon-btn">×</button>
+  <nav class="zone-tabs" aria-label="Selezione zona">
+    <button class="zone-tab active" data-zone="1">Zona 1</button>
+    <button class="zone-tab" data-zone="2">Zona 2</button>
+    <button class="zone-tab" data-zone="3">Zona 3</button>
+  </nav>
+
+  <main class="app-shell">
+    <section class="main-panel">
+      <div class="panel-title-row">
+        <div>
+          <h2 id="zoneTitle">ZONA 1 - Layout interattivo</h2>
+          <p>Clicca direttamente sulle scritte del layout oppure usa il menu “Seleziona punto”.</p>
+        </div>
+        <div class="sync-status" id="syncStatus">Locale</div>
       </div>
 
-      <input type="hidden" id="editId" />
-      <input type="hidden" id="selectedPointId" />
-
-      <div class="form-grid">
-        <label>Data e ora
-          <input id="fieldDatetime" type="datetime-local" required />
+      <div class="toolbar">
+        <label class="select-wrap">
+          <span>Seleziona punto</span>
+          <select id="pointSelect"></select>
         </label>
-        <label>Turno
-          <select id="fieldShift" required>
-            <option>Mattina</option>
-            <option>Pomeriggio</option>
-            <option>Notte</option>
+        <label class="select-wrap small">
+          <span>Stato</span>
+          <select id="statusFilter">
+            <option value="tutte">Tutte</option>
+            <option value="aperta">Aperte</option>
+            <option value="lavorazione">In lavorazione</option>
+            <option value="risolta">Risolte</option>
           </select>
+        </label>
+        <div class="zoom-box">
+          <button id="zoomOut" class="ghost-btn">−</button>
+          <strong id="zoomText">100%</strong>
+          <button id="zoomIn" class="ghost-btn">+</button>
+        </div>
+        <label class="check-wrap">
+          <input type="checkbox" id="showAreas" />
+          <span>Mostra aree cliccabili</span>
+        </label>
+      </div>
+
+      <div class="hint-box">
+        Su telefono la mappa si adatta alla larghezza. Usa +/− per ingrandire. Le aree cliccabili sono invisibili: attiva “Mostra aree cliccabili” solo per controllare l’allineamento.
+      </div>
+
+      <div class="layout-card">
+        <div id="mapInner" class="map-inner">
+          <img id="layoutImage" src="img/zona1.jpg" alt="Layout Zona 1" />
+          <div id="hotspotLayer" class="hotspot-layer" aria-label="Punti cliccabili"></div>
+        </div>
+      </div>
+    </section>
+
+    <aside id="detailPanel" class="detail-panel" aria-live="polite">
+      <div class="detail-head">
+        <div>
+          <h3 id="detailTitle">Nessun punto selezionato</h3>
+          <p id="detailSubtitle">Seleziona una scritta sul layout.</p>
+        </div>
+        <button id="closeDetail" class="icon-btn">×</button>
+      </div>
+
+      <div id="pointSummary" class="point-summary"></div>
+
+      <button id="newAnomalyBtn" class="primary-btn full">+ Nuova anomalia</button>
+
+      <form id="anomalyForm" class="anomaly-form hidden">
+        <h4>Inserisci anomalia</h4>
+        <label>Titolo breve
+          <input id="aTitle" required placeholder="Esempio: sensore sporco, robot in errore..." />
+        </label>
+        <div class="form-grid">
+          <label>Turno
+            <select id="aShift">
+              <option>Mattina</option>
+              <option>Pomeriggio</option>
+              <option>Notte</option>
+            </select>
+          </label>
+          <label>Priorità
+            <select id="aPriority">
+              <option value="alta">Alta</option>
+              <option value="media" selected>Media</option>
+              <option value="bassa">Bassa</option>
+            </select>
+          </label>
+        </div>
+        <label>Descrizione
+          <textarea id="aDescription" required placeholder="Descrivi cosa è successo e quando si presenta."></textarea>
+        </label>
+        <label>Intervento / consegna al turno successivo
+          <textarea id="aAction" placeholder="Cosa è stato fatto e cosa deve controllare il turno successivo."></textarea>
         </label>
         <label>Operatore
-          <input id="fieldOperator" placeholder="Nome operatore" />
+          <input id="aOperator" placeholder="Nome operatore" />
         </label>
-        <label>Priorità
-          <select id="fieldPriority" required>
-            <option value="Alta">Alta</option>
-            <option value="Media" selected>Media</option>
-            <option value="Bassa">Bassa</option>
-          </select>
-        </label>
-        <label>Stato
-          <select id="fieldStatus" required>
-            <option value="Aperta">Aperta</option>
-            <option value="In lavorazione">In lavorazione</option>
-            <option value="Risolta">Risolta</option>
-          </select>
-        </label>
-        <label>Assegnata a
-          <input id="fieldAssigned" placeholder="Manutenzione / Conduttore / Qualità" />
-        </label>
+        <div class="form-actions">
+          <button type="submit" class="primary-btn">Salva</button>
+          <button type="button" id="cancelForm" class="ghost-btn">Annulla</button>
+        </div>
+      </form>
+
+      <div class="list-head">
+        <h4>Anomalie del punto</h4>
+        <span id="pointCount" class="pill">0</span>
       </div>
+      <div id="anomalyList" class="anomaly-list empty">Nessuna anomalia selezionata.</div>
+    </aside>
+  </main>
 
-      <label>Titolo anomalia
-        <input id="fieldTitle" placeholder="Esempio: sensore sporco, rumorosità, robot in allarme..." required />
-      </label>
-      <label>Descrizione
-        <textarea id="fieldDescription" placeholder="Scrivi cosa è successo, quando si presenta, eventuali allarmi o condizioni..." required></textarea>
-      </label>
-      <label>Intervento / consegna per turno successivo
-        <textarea id="fieldAction" placeholder="Scrivi cosa è stato fatto e cosa deve controllare il turno successivo..."></textarea>
-      </label>
+  <footer class="bottom-bar">
+    <div class="stat-card red"><span></span><b id="openCount">0</b> anomalie aperte</div>
+    <div>Ultimo aggiornamento: <b id="lastUpdate">--</b></div>
+    <div class="footer-actions">
+      <button id="refreshBtn" class="ghost-btn">↻ Aggiorna</button>
+      <button id="exportBtn" class="ghost-btn">⇩ Esporta</button>
+      <button id="printBtn" class="ghost-btn">⎙ Stampa</button>
+    </div>
+  </footer>
 
+  <dialog id="backendDialog" class="dialog">
+    <form method="dialog" class="dialog-card">
+      <h3>Configurazione backend condiviso</h3>
+      <p>Inserisci l’URL del Worker Cloudflare e la chiave impostata come secret <b>APP_WRITE_KEY</b>.</p>
+      <label>URL API Cloudflare Worker
+        <input id="apiUrlInput" placeholder="https://passaggio-consegne-api.tuo-account.workers.dev" />
+      </label>
+      <label>Chiave/PIN scrittura
+        <input id="apiKeyInput" type="password" placeholder="APP_WRITE_KEY" />
+      </label>
       <div class="dialog-actions">
-        <button value="cancel" type="button" class="secondary" id="cancelDialog">Annulla</button>
-        <button type="submit" class="primary">Salva anomalia</button>
+        <button id="saveBackend" class="primary-btn" value="default">Salva</button>
+        <button id="testBackend" class="ghost-btn" value="default">Test</button>
+        <button class="ghost-btn" value="cancel">Chiudi</button>
       </div>
+      <p id="backendMsg" class="small-msg"></p>
     </form>
   </dialog>
 
-  <script src="app.js?v=5"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>

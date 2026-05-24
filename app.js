@@ -1,552 +1,428 @@
-/*
-  PASSAGGIO CONSEGNE - V4 CLICK CORRETTO
-  Le scritte presenti nelle immagini JPG non sono veri testi HTML.
-  Questa versione usa due metodi insieme:
-  1) aree trasparenti sopra le scritte;
-  2) click su tutta l'immagine con apertura del punto più vicino.
-  In questo modo anche su telefono è molto più facile selezionare OP, R, Porte, Lavatrice e Q.E.
-*/
+/* Passaggio Consegne - Frontend condiviso Cloudflare Workers/D1 */
+const APP_VERSION = '6.0.0-cloudflare-d1';
+const STORAGE_KEY = 'pc_anomalie_local_v6';
+const API_URL_KEY = 'pc_api_url';
+const API_KEY_KEY = 'pc_api_key';
 
 const ZONES = {
-  zona1: {
-    name: 'Zona 1',
+  1: {
+    title: 'ZONA 1 - Layout interattivo',
     image: 'img/zona1.jpg',
     points: [
-      {id:'PORTA1', label:'Porta 1 / SG01', x:12.5, y:22.0, w:10.0, h:4.0, type:'Sicurezza'},
-      {id:'OP30A', label:'OP30A - Magazzino sfere', x:22.2, y:27.0, w:6.8, h:4.5, type:'Magazzino sfere'},
-      {id:'OP30B', label:'OP30B - Magazzino sfere', x:27.0, y:24.8, w:6.4, h:4.8, type:'Magazzino sfere'},
-      {id:'OP30C', label:'OP30C - Magazzino sfere', x:31.0, y:22.0, w:7.8, h:5.0, type:'Magazzino sfere'},
-      {id:'OP30D', label:'OP30D - Magazzino sfere', x:36.0, y:24.2, w:7.5, h:5.4, type:'Magazzino sfere'},
-      {id:'OP30E', label:'OP30E - Magazzino sfere', x:41.5, y:27.0, w:7.8, h:5.0, type:'Magazzino sfere'},
-      {id:'PORTA3', label:'Porta 3 / SG03', x:53.5, y:18.0, w:7.0, h:5.5, type:'Sicurezza'},
-      {id:'PORTA5', label:'Porta 5 / SG05', x:68.8, y:27.0, w:7.5, h:4.3, type:'Sicurezza'},
-      {id:'R01', label:'R01 - Robot', x:25.8, y:40.0, w:7.5, h:6.0, type:'Robot'},
-      {id:'R02', label:'R02 - Robot', x:28.8, y:60.5, w:6.8, h:8.5, type:'Robot'},
-      {id:'R03', label:'R03 - Robot', x:30.0, y:31.5, w:10.5, h:8.2, type:'Robot'},
-      {id:'R04', label:'R04 - Robot', x:53.0, y:33.0, w:12.8, h:8.5, type:'Robot'},
-      {id:'R05', label:'R05 - Robot', x:47.0, y:59.0, w:7.8, h:9.2, type:'Robot'},
-      {id:'R06', label:'R06 - Robot', x:67.8, y:37.2, w:8.2, h:8.2, type:'Robot'},
-      {id:'OP05A', label:'OP05A - Prelievo anello', x:8.8, y:47.8, w:12.5, h:3.8, type:'Prelievo anello'},
-      {id:'OP05B', label:'OP05B - Prelievo anello', x:8.8, y:53.0, w:12.5, h:3.8, type:'Prelievo anello'},
-      {id:'OP10A', label:'OP10A - Misura anello esterno', x:22.5, y:55.5, w:7.8, h:5.5, type:'Misura'},
-      {id:'OP10B', label:'OP10B - Misura anello interno', x:28.5, y:45.0, w:7.8, h:5.5, type:'Misura'},
-      {id:'OP20A', label:'OP20A - Deposito anelli', x:36.8, y:57.8, w:7.5, h:4.8, type:'Deposito anelli'},
-      {id:'OP20B', label:'OP20B - Deposito anelli', x:37.0, y:41.5, w:7.8, h:5.0, type:'Deposito anelli'},
-      {id:'OP40A', label:'OP40A - Appaiatura', x:47.4, y:44.0, w:8.5, h:5.5, type:'Appaiatura'},
-      {id:'OP40B', label:'OP40B - Appaiatura', x:58.8, y:43.8, w:8.5, h:5.5, type:'Appaiatura'},
-      {id:'OP60', label:'OP60 - Fasatura', x:51.0, y:48.0, w:6.0, h:4.6, type:'Fasatura'},
-      {id:'OP70', label:'OP70 - Carico gabbia', x:52.5, y:53.2, w:7.0, h:4.8, type:'Carico gabbia'},
-      {id:'OP80', label:'OP80 - Trasferimento', x:53.2, y:65.0, w:7.0, h:4.8, type:'Trasferimento'},
-      {id:'OP90', label:'OP90 - Trasferimento', x:63.4, y:65.0, w:7.2, h:4.8, type:'Trasferimento'},
-      {id:'OP100', label:'OP100 - Controllo visivo', x:64.0, y:57.0, w:8.0, h:5.0, type:'Controllo visivo'},
-      {id:'OP110', label:'OP110 - Controllo visivo', x:63.5, y:51.0, w:8.3, h:5.0, type:'Controllo visivo'},
-      {id:'OP115', label:'OP115', x:68.5, y:35.5, w:7.0, h:5.0, type:'Operazione'},
-      {id:'OP120', label:'OP120 - Tavola', x:58.5, y:47.5, w:8.5, h:5.0, type:'Tavola'},
-      {id:'OP125B', label:'OP125B - Keyence 3D', x:69.5, y:49.5, w:8.4, h:5.2, type:'Keyence 3D'},
-      {id:'OP125', label:'OP125 - Keyence 3D', x:72.5, y:65.0, w:7.6, h:5.0, type:'Keyence 3D'},
-      {id:'QE1', label:'Q.E. Zona 1', x:83.5, y:31.0, w:8.8, h:26.5, type:'Quadro elettrico'},
-      {id:'R04-R05-R06', label:'Box R04 - R05 - R06', x:83.5, y:58.0, w:7.8, h:25.0, type:'Robot'},
-      {id:'LAVATRICE', label:'Lavatrice', x:67.5, y:71.0, w:9.0, h:18.0, type:'Lavatrice'},
-      {id:'PORTA2', label:'Porta 2 / SG02', x:26.0, y:80.0, w:15.0, h:5.0, type:'Sicurezza'},
-      {id:'PAR01', label:'PAR 01', x:7.0, y:70.0, w:4.0, h:12.0, type:'Area'},
-      {id:'R01-R02-R03', label:'Box R01 - R02 - R03', x:12.5, y:86.0, w:10.0, h:6.0, type:'Robot'}
+      p('SG01','Porta 1 / SG01','Ingresso sicurezza zona 1', 7, 13, 13, 8),
+      p('OP30A','OP30A','Magazzino sfere / stazione OP30A', 19, 22, 8, 8),
+      p('OP30B','OP30B','Magazzino sfere / stazione OP30B', 27, 19, 8, 8),
+      p('OP30C','OP30C','Magazzino sfere / stazione OP30C', 34, 17, 8, 8),
+      p('OP30D','OP30D','Magazzino sfere / stazione OP30D', 42, 19, 8, 8),
+      p('OP30E','OP30E','Magazzino sfere / stazione OP30E', 49, 22, 8, 8),
+      p('SG03','Porta 3 / SG03','Varco superiore centrale', 56, 16, 10, 8),
+      p('SG05','Porta 5 / SG05','Varco superiore destro', 75, 21, 13, 7),
+      p('R01','R01','Robot R01', 20, 39, 8, 10),
+      p('R02','R02','Robot R02', 29, 64, 8, 8),
+      p('R03','R03','Robot R03', 31, 29, 10, 9),
+      p('R04','R04','Robot R04', 56, 35, 9, 9),
+      p('R05','R05','Robot R05', 51, 63, 8, 9),
+      p('R06','R06','Robot R06', 74, 38, 8, 9),
+      p('OP05A','OP05A','Prelievo anello esterno', 6, 48, 17, 5),
+      p('OP05B','OP05B','Prelievo anello esterno', 6, 54, 17, 5),
+      p('OP10A','OP10A','Misura anello esterno', 22, 55, 9, 8),
+      p('OP10B','OP10B','Misura anello interno', 30, 47, 9, 8),
+      p('OP20A','OP20A','Deposito/inserimento anelli - OP20A', 37, 59, 9, 9),
+      p('OP20B','OP20B','Deposito/inserimento anelli - OP20B', 37, 43, 9, 10),
+      p('OP40A','OP40A','Area fasatura/carico gabbia superiore OP40A', 51, 37, 12, 13),
+      p('OP40B','OP40B','Area fasatura/carico gabbia superiore OP40B', 64, 37, 12, 13),
+      p('OP60','OP60','Stazione OP60', 52, 51, 8, 7),
+      p('OP70','OP70','Stazione OP70', 57, 58, 8, 7),
+      p('OP80','OP80','Stazione OP80', 58, 72, 8, 7),
+      p('OP90','OP90','Stazione OP90', 67, 72, 8, 7),
+      p('OP100','OP100','Controllo visivo / area OP100', 73, 62, 8, 7),
+      p('OP110','OP110','Stazione OP110', 76, 54, 8, 7),
+      p('OP115','OP115','Stazione OP115', 76, 30, 8, 7),
+      p('OP120','OP120','Tavola centrale OP120', 63, 51, 13, 15),
+      p('OP125','OP125','Controllo visivo Keyence 3D / OP125', 79, 68, 9, 8),
+      p('OP125B','OP125B','Stazione OP125B', 77, 51, 9, 8),
+      p('KEYENCE','Keyence','Controllo visivo Keyence 3D', 78, 64, 10, 6),
+      p('LAVATRICE','Lavatrice','Lavatrice zona 1', 71, 75, 10, 18),
+      p('QE1','Q.E. Zona 1','Quadro elettrico zona 1', 87, 33, 9, 27),
+      p('R04-R05-R06','R04 / R05 / R06','Armadio/area robot R04-R05-R06', 87, 61, 8, 23),
+      p('SG02','Porta 2 / SG02','Varco inferiore centrale', 29, 84, 25, 8),
+      p('R01-R02-R03','R01-R02-R03','Armadio/area robot R01-R02-R03', 11, 86, 14, 8),
+      p('EMERGENZA','Emergenza Generale','Pulsante/area emergenza generale', 4, 86, 8, 9),
+      p('PAR01','PAR 01','Protezione perimetrale PAR 01', 4, 64, 8, 18)
     ]
   },
-
-  zona2: {
-    name: 'Zona 2',
+  2: {
+    title: 'ZONA 2 - Layout interattivo',
     image: 'img/zona2.jpg',
     points: [
-      {id:'CTRL-LAV-SUP', label:'Controllo lavatrice superiore', x:22.5, y:2.0, w:15.0, h:6.0, type:'Lavatrice'},
-      {id:'QE2', label:'Q.E. Zona 2', x:43.8, y:13.0, w:10.5, h:5.0, type:'Quadro elettrico'},
-      {id:'R07-08-09', label:'Box R07 - R08 - R09', x:54.8, y:10.0, w:10.5, h:7.5, type:'Robot'},
-      {id:'PORTA1', label:'Porta 1', x:70.0, y:18.2, w:9.5, h:4.5, type:'Sicurezza'},
-      {id:'LAV-SX', label:'Lavatrice sinistra', x:15.0, y:35.0, w:15.0, h:8.0, type:'Lavatrice'},
-      {id:'OP170AB', label:'OP170A+B', x:32.5, y:36.5, w:10.0, h:14.5, type:'Operazione'},
-      {id:'OP180', label:'OP180', x:48.0, y:43.0, w:7.5, h:8.0, type:'Operazione'},
-      {id:'OP185', label:'OP185', x:50.0, y:54.0, w:6.5, h:8.0, type:'Operazione'},
-      {id:'OP190', label:'OP190', x:55.0, y:32.5, w:7.5, h:17.0, type:'Operazione'},
-      {id:'OP125C', label:'OP125C', x:63.5, y:47.0, w:7.5, h:5.5, type:'Controllo'},
-      {id:'OP135', label:'OP135', x:68.3, y:40.0, w:7.5, h:5.5, type:'Operazione'},
-      {id:'LAV-DX', label:'Lavatrice destra', x:78.0, y:39.0, w:13.5, h:10.0, type:'Lavatrice'},
-      {id:'OP200', label:'OP200', x:79.5, y:47.0, w:8.0, h:5.2, type:'Lavatrice'},
-      {id:'CTRL-LAV-DX', label:'Controllo lavatrice destra', x:75.0, y:67.0, w:8.0, h:18.0, type:'Lavatrice'},
-      {id:'R07', label:'R07 - Robot', x:38.0, y:58.0, w:6.5, h:11.0, type:'Robot'},
-      {id:'R08', label:'R08 - Robot', x:46.0, y:58.0, w:6.5, h:11.0, type:'Robot'},
-      {id:'R09', label:'R09 - Robot', x:55.5, y:58.0, w:7.0, h:12.0, type:'Robot'},
-      {id:'PORTA2', label:'Porta 2', x:53.5, y:84.0, w:10.0, h:4.5, type:'Sicurezza'},
-      {id:'PAR02', label:'PAR 02', x:68.5, y:87.0, w:10.0, h:4.5, type:'Area'}
+      p('CONTROLLO-LAVATRICE-TOP','Controllo Lavatrice','Controllo lavatrice superiore', 19, 1, 20, 16),
+      p('QE2','Q.E. Zona 2','Quadro elettrico zona 2', 42, 7, 15, 9),
+      p('R07-R08-R09','R07-08-09','Armadio/area robot R07-R08-R09', 58, 5, 16, 11),
+      p('SG01','Porta 1 / SG01','Varco superiore destro zona 2', 77, 16, 15, 7),
+      p('LAVATRICE-SX','Lavatrice sinistra','Lavatrice lato sinistro', 10, 32, 22, 14),
+      p('OP170A+B','OP170A+B','Stazione OP170A+B', 34, 38, 11, 16),
+      p('R07','R07','Robot R07', 37, 55, 8, 9),
+      p('OP180','OP180','Stazione OP180', 47, 39, 10, 15),
+      p('R08','R08','Robot R08', 47, 55, 8, 9),
+      p('OP185','OP185','Stazione OP185', 50, 60, 7, 8),
+      p('OP190','OP190','Stazione OP190', 61, 37, 10, 18),
+      p('R09','R09','Robot R09', 62, 55, 9, 11),
+      p('OP125C','OP125C','Stazione OP125C', 71, 42, 10, 15),
+      p('OP135','OP135','Stazione OP135', 74, 36, 8, 7),
+      p('OP200','OP200','Lavatrice / stazione OP200', 84, 38, 14, 13),
+      p('CONTROLLO-LAVATRICE-DX','Controllo Lavatrice','Controllo lavatrice destro', 82, 66, 15, 21),
+      p('SG02','Porta 2 / SG02','Varco inferiore centrale zona 2', 48, 84, 24, 7),
+      p('PAR02','PAR 02','Protezione perimetrale PAR 02', 74, 84, 13, 6)
     ]
   },
-
-  zona3: {
-    name: 'Zona 3',
+  3: {
+    title: 'ZONA 3 - Layout interattivo',
     image: 'img/zona3.jpg',
     points: [
-      {id:'PORTA1', label:'Porta 1', x:16.0, y:20.0, w:11.0, h:4.5, type:'Sicurezza'},
-      {id:'R10-11-12', label:'Box R10 - R11 - R12', x:28.0, y:9.5, w:14.0, h:5.5, type:'Robot'},
-      {id:'R13-R14', label:'Box R13 / R14', x:39.0, y:9.5, w:12.0, h:5.5, type:'Robot'},
-      {id:'PORTA3', label:'Porta 3', x:46.0, y:8.8, w:8.0, h:4.5, type:'Sicurezza'},
-      {id:'PORTA5', label:'Porta 5', x:54.5, y:8.8, w:8.0, h:4.5, type:'Sicurezza'},
-      {id:'QE3', label:'Q.E. Zona 3', x:64.0, y:12.5, w:16.0, h:5.0, type:'Quadro elettrico'},
-      {id:'PORTA7', label:'Porta 7', x:80.0, y:27.5, w:10.0, h:5.0, type:'Sicurezza'},
-      {id:'LAVATRICE', label:'Lavatrice', x:10.0, y:39.0, w:13.0, h:6.5, type:'Lavatrice'},
-      {id:'OP200', label:'OP200', x:12.0, y:43.8, w:7.0, h:5.0, type:'Lavatrice'},
-      {id:'CTRL-LAV', label:'Controllo lavatrice', x:8.0, y:61.0, w:8.5, h:18.0, type:'Lavatrice'},
-      {id:'R10', label:'R10 - Robot', x:36.0, y:27.0, w:7.5, h:6.0, type:'Robot'},
-      {id:'R11', label:'R11 - Robot', x:35.5, y:63.0, w:7.0, h:5.0, type:'Robot'},
-      {id:'R12', label:'R12 - Robot', x:50.5, y:62.0, w:7.0, h:5.5, type:'Robot'},
-      {id:'R13', label:'R13 - Robot', x:53.5, y:32.0, w:7.0, h:5.0, type:'Robot'},
-      {id:'R14', label:'R14 - Robot', x:67.0, y:38.0, w:7.0, h:5.0, type:'Robot'},
-      {id:'OP230', label:'OP230', x:27.0, y:50.0, w:7.0, h:5.5, type:'Operazione'},
-      {id:'OP210', label:'OP210', x:35.2, y:39.0, w:5.0, h:11.0, type:'Operazione'},
-      {id:'OP220', label:'OP220', x:39.0, y:39.0, w:5.0, h:11.0, type:'Operazione'},
-      {id:'OP240', label:'OP240', x:35.0, y:50.0, w:6.0, h:7.0, type:'Operazione'},
-      {id:'OP270A', label:'OP270A', x:46.0, y:45.0, w:8.0, h:6.0, type:'Operazione'},
-      {id:'OP270B', label:'OP270B', x:54.0, y:45.0, w:8.0, h:6.0, type:'Operazione'},
-      {id:'OP280A', label:'OP280A', x:46.0, y:27.0, w:8.0, h:5.5, type:'Operazione'},
-      {id:'OP280B', label:'OP280B', x:54.0, y:27.0, w:8.0, h:5.5, type:'Operazione'},
-      {id:'OP250', label:'OP250', x:64.5, y:58.0, w:8.0, h:5.5, type:'Operazione'},
-      {id:'PORTA2', label:'Porta 2', x:31.0, y:78.0, w:11.0, h:5.0, type:'Sicurezza'},
-      {id:'PAR02', label:'PAR 02', x:45.0, y:80.0, w:10.0, h:4.5, type:'Area'}
+      p('SG01','Porta 1 / SG01','Varco superiore sinistro zona 3', 9, 16, 16, 7),
+      p('R10-R11-R12','R10-11-12','Armadio/area robot R10-R11-R12', 28, 5, 15, 11),
+      p('R13-R14','R13 / R14','Armadio/area robot R13/R14', 43, 5, 14, 11),
+      p('SG03','Porta 3 / SG03','Varco porta 3 zona 3', 57, 10, 9, 6),
+      p('SG05','Porta 5 / SG05','Varco porta 5 zona 3', 66, 10, 10, 6),
+      p('QE3','Q.E. Zona 3','Quadro elettrico zona 3', 72, 9, 18, 13),
+      p('SG07','Porta 7 / SG07','Varco destro zona 3', 83, 24, 10, 9),
+      p('LAVATRICE','Lavatrice','Lavatrice zona 3', 5, 34, 18, 13),
+      p('OP200','OP200','Stazione OP200', 9, 46, 13, 6),
+      p('R10','R10','Robot R10', 35, 27, 8, 9),
+      p('OP210','OP210','Stazione OP210', 34, 37, 6, 13),
+      p('OP220','OP220','Stazione OP220', 39, 41, 8, 8),
+      p('OP230','OP230','Stazione OP230', 28, 42, 9, 9),
+      p('OP240','OP240','Stazione OP240', 34, 51, 10, 9),
+      p('R11','R11','Robot R11', 35, 61, 8, 9),
+      p('R12','R12','Robot R12', 50, 63, 8, 9),
+      p('OP280A','OP280A','Stazione OP280A', 55, 26, 9, 10),
+      p('OP280B','OP280B','Stazione OP280B', 65, 26, 9, 10),
+      p('R13','R13','Robot R13', 58, 34, 8, 10),
+      p('OP270A','OP270A','Stazione OP270A', 50, 44, 11, 10),
+      p('OP270B','OP270B','Stazione OP270B', 61, 44, 11, 10),
+      p('R14','R14','Robot R14', 73, 38, 8, 11),
+      p('OP250','OP250','Stazione OP250', 73, 54, 9, 10),
+      p('CONTROLLO-LAVATRICE','Controllo Lavatrice','Controllo lavatrice zona 3', 6, 67, 18, 18),
+      p('SG02','Porta 2 / SG02','Varco inferiore zona 3', 27, 81, 25, 7),
+      p('PAR02','PAR 02','Protezione perimetrale PAR 02', 50, 81, 18, 6)
     ]
   }
 };
 
-const STORAGE_KEY = 'hmi_passaggio_consegne_click_fix_v4';
-const HIT_TOLERANCE = 7.5; // percentuale: se clicchi vicino alla scritta, apre comunque il punto più vicino
+function p(id, label, description, x, y, w, h){ return {id,label,description,x,y,w,h}; }
 
-const ui = {
-  zoneTabs: document.querySelectorAll('.zone-tab'),
-  menuBtns: document.querySelectorAll('.menu-btn'),
-  views: document.querySelectorAll('.view'),
-  layoutImage: document.getElementById('layoutImage'),
-  hotspotsLayer: document.getElementById('hotspotsLayer'),
-  layoutStage: document.getElementById('layoutStage'),
-  zoneTitle: document.getElementById('zoneTitle'),
-  detailPanel: document.getElementById('detailPanel'),
-  panelContent: document.getElementById('panelContent'),
-  closePanel: document.getElementById('closePanel'),
-  dialog: document.getElementById('anomalyDialog'),
-  form: document.getElementById('anomalyForm'),
-  hotspotToggle: document.getElementById('hotspotToggle'),
-  zoomReset: document.getElementById('zoomReset'),
-  pointSelect: document.getElementById('pointSelect'),
-  clickInfo: document.getElementById('clickInfo')
-};
-
-let state = {
-  zone: 'zona1',
-  selectedPointId: null,
-  filter: 'tutte',
+const state = {
+  zone: '1',
+  selectedPoint: null,
+  anomalies: [],
   zoom: 1,
-  anomalies: loadAnomalies(),
+  showAreas: false,
+  apiUrl: localStorage.getItem(API_URL_KEY) || '',
+  apiKey: localStorage.getItem(API_KEY_KEY) || '',
+  loading: false
 };
 
-function loadAnomalies(){
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
-  catch { return []; }
+const $ = (id) => document.getElementById(id);
+
+window.addEventListener('DOMContentLoaded', () => {
+  bindEvents();
+  tickClock(); setInterval(tickClock, 1000);
+  renderZone();
+  loadAnomalies();
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+});
+
+function bindEvents(){
+  document.querySelectorAll('.zone-tab').forEach(btn => btn.addEventListener('click', () => switchZone(btn.dataset.zone)));
+  $('pointSelect').addEventListener('change', e => selectPoint(e.target.value));
+  $('statusFilter').addEventListener('change', renderAnomalies);
+  $('showAreas').addEventListener('change', e => { state.showAreas = e.target.checked; $('mapInner').classList.toggle('show-areas', state.showAreas); });
+  $('zoomIn').addEventListener('click', () => setZoom(Math.min(2.2, state.zoom + .15)));
+  $('zoomOut').addEventListener('click', () => setZoom(Math.max(1, state.zoom - .15)));
+  $('layoutImage').addEventListener('click', fallbackImageClick);
+  $('newAnomalyBtn').addEventListener('click', () => $('anomalyForm').classList.toggle('hidden'));
+  $('cancelForm').addEventListener('click', () => $('anomalyForm').classList.add('hidden'));
+  $('anomalyForm').addEventListener('submit', saveAnomaly);
+  $('closeDetail').addEventListener('click', closeDetail);
+  $('refreshBtn').addEventListener('click', loadAnomalies);
+  $('exportBtn').addEventListener('click', exportTxt);
+  $('printBtn').addEventListener('click', () => window.print());
+  $('backendBtn').addEventListener('click', openBackendDialog);
+  $('saveBackend').addEventListener('click', saveBackendConfig);
+  $('testBackend').addEventListener('click', testBackend);
 }
-function saveAnomalies(){
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.anomalies));
-  localStorage.setItem(STORAGE_KEY + '_updated', new Date().toISOString());
+
+function tickClock(){
+  const now = new Date();
+  $('clock').textContent = now.toLocaleDateString('it-IT', {day:'2-digit',month:'2-digit',year:'2-digit'}) + ', ' + now.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
 }
-function nowLocal(){
-  const d = new Date();
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toISOString().slice(0,16);
-}
-function fmt(dt){
-  if(!dt) return '';
-  return new Date(dt).toLocaleString('it-IT', {dateStyle:'short', timeStyle:'short'});
-}
-function esc(str){
-  return String(str ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-}
-function statusClass(status){
-  if(status === 'Aperta') return 'aperta';
-  if(status === 'In lavorazione') return 'in-lavorazione';
-  if(status === 'Risolta') return 'risolta';
-  return '';
-}
-function pointCenter(p){ return {x:p.x + p.w/2, y:p.y + p.h/2}; }
-function pointById(zoneId, pointId){ return ZONES[zoneId].points.find(p => p.id === pointId); }
-function anomaliesForPoint(zoneId, pointId){ return state.anomalies.filter(a => a.zoneId === zoneId && a.pointId === pointId); }
-function worstStatus(anoms){
-  if(anoms.some(a => a.status === 'Aperta')) return 'open';
-  if(anoms.some(a => a.status === 'In lavorazione')) return 'work';
-  if(anoms.some(a => a.status === 'Risolta')) return 'done';
-  return 'none';
-}
-function hotspotVisibleForFilter(anoms){
-  if(state.filter === 'tutte') return true;
-  if(state.filter === 'aperta') return anoms.some(a => a.status === 'Aperta');
-  if(state.filter === 'lavorazione') return anoms.some(a => a.status === 'In lavorazione');
-  if(state.filter === 'risolta') return anoms.some(a => a.status === 'Risolta');
-  return true;
+
+function switchZone(zone){
+  state.zone = String(zone);
+  state.selectedPoint = null;
+  document.querySelectorAll('.zone-tab').forEach(b => b.classList.toggle('active', b.dataset.zone === state.zone));
+  renderZone();
+  renderAnomalies();
+  closeDetail();
 }
 
 function renderZone(){
   const zone = ZONES[state.zone];
-  ui.zoneTitle.textContent = `${zone.name.toUpperCase()} - Layout interattivo`;
-  ui.layoutImage.src = zone.image;
-  ui.layoutImage.alt = `Layout ${zone.name}`;
-  ui.hotspotsLayer.innerHTML = '';
-  ui.layoutStage.classList.toggle('show-hotspots', ui.hotspotToggle.checked);
-
-  ui.pointSelect.innerHTML = `<option value="">Scegli una voce...</option>` +
-    zone.points.map(p => `<option value="${p.id}">${p.id} - ${esc(p.label)}</option>`).join('');
-  ui.pointSelect.value = state.selectedPointId || '';
-
-  zone.points.forEach(point => {
-    const anoms = anomaliesForPoint(state.zone, point.id);
-    const status = worstStatus(anoms);
+  $('zoneTitle').textContent = zone.title;
+  $('layoutImage').src = zone.image;
+  $('layoutImage').alt = `Layout Zona ${state.zone}`;
+  const select = $('pointSelect');
+  select.innerHTML = '<option value="">-- Seleziona punto --</option>' + zone.points.map(pt => `<option value="${escapeAttr(pt.id)}">${escapeHtml(pt.label)}</option>`).join('');
+  const layer = $('hotspotLayer');
+  layer.innerHTML = '';
+  zone.points.forEach(pt => {
     const btn = document.createElement('button');
+    btn.className = 'hotspot';
     btn.type = 'button';
-    btn.className = `hotspot status-${status}`;
-    if(status === 'open') btn.classList.add('has-open');
-    if(status === 'work') btn.classList.add('has-work');
-    if(status === 'done') btn.classList.add('has-done');
-    if(state.selectedPointId === point.id) btn.classList.add('selected');
-    if(!hotspotVisibleForFilter(anoms)) btn.classList.add('filtered-out');
-    btn.style.left = point.x + '%';
-    btn.style.top = point.y + '%';
-    btn.style.width = point.w + '%';
-    btn.style.height = point.h + '%';
-    btn.dataset.id = point.id;
-    btn.title = `${point.id} - ${point.label}`;
-    btn.setAttribute('aria-label', `${point.id} - ${point.label}`);
-    btn.addEventListener('click', (ev) => {
-      ev.stopPropagation();
-      selectPoint(point.id);
-    });
-    ui.hotspotsLayer.appendChild(btn);
+    btn.dataset.id = pt.id;
+    btn.dataset.label = pt.label;
+    btn.title = pt.label;
+    btn.setAttribute('aria-label', pt.label);
+    btn.style.left = pt.x + '%'; btn.style.top = pt.y + '%'; btn.style.width = pt.w + '%'; btn.style.height = pt.h + '%';
+    btn.addEventListener('click', (e) => { e.stopPropagation(); selectPoint(pt.id); });
+    layer.appendChild(btn);
   });
-
-  renderStats();
-  renderLists();
-  if(state.selectedPointId) renderPanel();
+  $('mapInner').classList.toggle('show-areas', state.showAreas);
+  setZoom(1);
 }
 
-function getImagePercentFromEvent(ev){
-  const rect = ui.layoutImage.getBoundingClientRect();
-  const x = ((ev.clientX - rect.left) / rect.width) * 100;
-  const y = ((ev.clientY - rect.top) / rect.height) * 100;
-  if(x < 0 || x > 100 || y < 0 || y > 100) return null;
-  return {x, y};
+function setZoom(value){
+  state.zoom = Number(value.toFixed(2));
+  $('mapInner').style.width = `${state.zoom * 100}%`;
+  $('zoomText').textContent = Math.round(state.zoom * 100) + '%';
 }
 
-function hitTestPoint(px, py){
-  const points = ZONES[state.zone].points;
-  // Prima prova: dentro il rettangolo vero della scritta/area.
-  let direct = points.find(p => px >= p.x && px <= p.x + p.w && py >= p.y && py <= p.y + p.h);
-  if(direct) return direct;
-
-  // Seconda prova: se il click è vicino, scegli il punto più vicino.
-  let nearest = null;
-  let nearestDistance = Infinity;
-  for(const p of points){
-    const c = pointCenter(p);
-    const dx = px - c.x;
-    const dy = py - c.y;
-    const distance = Math.sqrt(dx*dx + dy*dy);
-    if(distance < nearestDistance){
-      nearestDistance = distance;
-      nearest = p;
-    }
-  }
-  return nearestDistance <= HIT_TOLERANCE ? nearest : null;
-}
-
-function selectPointFromClick(ev){
-  const pos = getImagePercentFromEvent(ev);
-  if(!pos) return;
-  ui.clickInfo.textContent = `Click: X ${pos.x.toFixed(1)}% - Y ${pos.y.toFixed(1)}%`;
-  const point = hitTestPoint(pos.x, pos.y);
-  if(point) selectPoint(point.id);
+function fallbackImageClick(e){
+  const rect = e.currentTarget.getBoundingClientRect();
+  const x = ((e.clientX - rect.left) / rect.width) * 100;
+  const y = ((e.clientY - rect.top) / rect.height) * 100;
+  const pts = ZONES[state.zone].points;
+  const exact = pts.find(pt => x >= pt.x && x <= pt.x + pt.w && y >= pt.y && y <= pt.y + pt.h);
+  if(exact){ selectPoint(exact.id); return; }
+  let best = null, bestD = Infinity;
+  pts.forEach(pt => {
+    const cx = pt.x + pt.w/2, cy = pt.y + pt.h/2;
+    const d = Math.hypot(cx-x, cy-y);
+    if(d < bestD){ best = pt; bestD = d; }
+  });
+  if(best && bestD < 9) selectPoint(best.id);
 }
 
 function selectPoint(pointId){
-  state.selectedPointId = pointId;
-  ui.pointSelect.value = pointId;
-  renderZone();
-  renderPanel();
-  if(window.innerWidth <= 1100) ui.detailPanel.classList.add('open');
+  if(!pointId) return;
+  const pt = ZONES[state.zone].points.find(p => p.id === pointId);
+  if(!pt) return;
+  state.selectedPoint = pt;
+  $('pointSelect').value = pt.id;
+  document.querySelectorAll('.hotspot').forEach(el => el.classList.toggle('selected', el.dataset.id === pt.id));
+  $('detailTitle').textContent = pt.label;
+  $('detailSubtitle').textContent = `Zona ${state.zone}`;
+  $('pointSummary').innerHTML = `<b>${escapeHtml(pt.label)}</b><br>${escapeHtml(pt.description)}<br><small>ID punto: ${escapeHtml(pt.id)}</small>`;
+  $('anomalyForm').classList.add('hidden');
+  $('detailPanel').classList.add('open');
+  renderAnomalies();
 }
 
-function renderPanel(){
-  const point = pointById(state.zone, state.selectedPointId);
-  if(!point){
-    ui.panelContent.innerHTML = `<div class="empty-panel"><h3>Dettaglio punto</h3><p>Seleziona una scritta sul layout.</p></div>`;
+function closeDetail(){
+  $('detailPanel').classList.remove('open');
+  if(!state.selectedPoint){
+    $('detailTitle').textContent = 'Nessun punto selezionato';
+    $('detailSubtitle').textContent = 'Seleziona una scritta sul layout.';
+    $('pointSummary').innerHTML = '';
+  }
+}
+
+async function loadAnomalies(){
+  state.loading = true;
+  updateSyncStatus('Caricamento...', '');
+  try{
+    if(state.apiUrl){
+      const data = await apiFetch('/api/anomalies?limit=1000');
+      state.anomalies = data.items || [];
+      updateSyncStatus('Online D1', 'online');
+    }else{
+      state.anomalies = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      updateSyncStatus('Locale', 'offline');
+    }
+    $('lastUpdate').textContent = new Date().toLocaleString('it-IT');
+  }catch(err){
+    console.error(err);
+    state.anomalies = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    updateSyncStatus('Offline / locale', 'offline');
+    toast('Backend non raggiungibile: uso dati locali.');
+  }finally{
+    state.loading = false;
+    renderAnomalies();
+  }
+}
+
+function renderAnomalies(){
+  const status = $('statusFilter').value;
+  const zoneName = `Zona ${state.zone}`;
+  let filtered = state.anomalies.filter(a => a.zone === zoneName);
+  if(status !== 'tutte') filtered = filtered.filter(a => a.status === status);
+  const open = state.anomalies.filter(a => a.status === 'aperta').length;
+  $('openCount').textContent = open;
+
+  if(!state.selectedPoint){
+    $('anomalyList').className = 'anomaly-list empty';
+    $('anomalyList').textContent = 'Seleziona un punto per vedere le anomalie.';
+    $('pointCount').textContent = '0';
     return;
   }
-  const anoms = anomaliesForPoint(state.zone, point.id).sort((a,b) => new Date(b.datetime) - new Date(a.datetime));
-  const active = anoms.filter(a => a.status !== 'Risolta');
+  const pointItems = filtered.filter(a => a.point_id === state.selectedPoint.id);
+  $('pointCount').textContent = pointItems.length;
+  const list = $('anomalyList');
+  if(pointItems.length === 0){
+    list.className = 'anomaly-list empty';
+    list.textContent = 'Nessuna anomalia per questo punto.';
+    return;
+  }
+  list.className = 'anomaly-list';
+  list.innerHTML = pointItems.map(a => anomalyCard(a)).join('');
+  list.querySelectorAll('[data-status-set]').forEach(btn => btn.addEventListener('click', () => updateAnomalyStatus(btn.dataset.id, btn.dataset.statusSet)));
+  list.querySelectorAll('[data-delete]').forEach(btn => btn.addEventListener('click', () => deleteAnomaly(btn.dataset.delete)));
+}
 
-  ui.panelContent.innerHTML = `
-    <div class="point-head">
-      <span class="pin-dot"></span>
+function anomalyCard(a){
+  return `<article class="anomaly-card">
+    <div class="anomaly-top">
       <div>
-        <h3>${esc(point.id)}</h3>
-        <p>${esc(point.label)} • ${esc(point.type)} • ${ZONES[state.zone].name}</p>
+        <h4>${escapeHtml(a.title || 'Anomalia')}</h4>
+        <div class="priority ${a.priority || 'media'}">Priorità ${labelPriority(a.priority)}</div>
       </div>
+      <span class="status ${a.status}">${labelStatus(a.status)}</span>
     </div>
-    <button class="primary new-btn" id="newAnomalyBtn">＋ Nuova anomalia su ${esc(point.id)}</button>
-    ${active.length ? `<p class="muted"><b>${active.length}</b> anomalie ancora aperte/in lavorazione.</p>` : `<p class="muted">Nessuna anomalia aperta su questo punto.</p>`}
-    <div class="panel-tabs"><button class="active">Anomalie</button><button>Storico</button></div>
-    <div>${anoms.length ? anoms.map(renderAnomalyCard).join('') : `<div class="empty-list">Nessuna anomalia registrata su ${esc(point.id)}.</div>`}</div>
-  `;
-  document.getElementById('newAnomalyBtn').addEventListener('click', () => openDialogForNew(point.id));
-  ui.panelContent.querySelectorAll('[data-action]').forEach(btn => btn.addEventListener('click', handleCardAction));
+    <p><b>Orario:</b> ${formatDate(a.created_at || a.date_time)}</p>
+    <p><b>Turno:</b> ${escapeHtml(a.shift || '-')}</p>
+    <p><b>Descrizione:</b><br>${escapeHtml(a.description || '')}</p>
+    ${a.action ? `<p><b>Consegna:</b><br>${escapeHtml(a.action)}</p>` : ''}
+    ${a.operator_name ? `<p><b>Operatore:</b> ${escapeHtml(a.operator_name)}</p>` : ''}
+    <div class="card-actions">
+      <button data-id="${a.id}" data-status-set="aperta">Aperta</button>
+      <button data-id="${a.id}" data-status-set="lavorazione">In lavorazione</button>
+      <button data-id="${a.id}" data-status-set="risolta">Risolta</button>
+      <button data-delete="${a.id}">Elimina</button>
+    </div>
+  </article>`;
 }
 
-function renderAnomalyCard(a){
-  return `
-    <article class="anomaly-card">
-      <h4>${esc(a.title)} <span class="tag state ${statusClass(a.status)}">${esc(a.status)}</span></h4>
-      <p class="muted">${fmt(a.datetime)} • ${esc(a.shift)} • ${esc(a.operator || 'Operatore non indicato')}</p>
-      <p><b>Priorità:</b> <span class="tag ${String(a.priority).toLowerCase()}">${esc(a.priority)}</span></p>
-      <p><b>Descrizione:</b><br>${esc(a.description)}</p>
-      ${a.action ? `<p><b>Consegna:</b><br>${esc(a.action)}</p>` : ''}
-      ${a.assigned ? `<p class="muted">Assegnata a: ${esc(a.assigned)}</p>` : ''}
-      <div class="card-actions">
-        <button data-action="edit" data-id="${a.id}">Modifica</button>
-        <button data-action="work" data-id="${a.id}">In lavorazione</button>
-        <button data-action="done" data-id="${a.id}">Risolta</button>
-        <button data-action="delete" data-id="${a.id}">Elimina</button>
-      </div>
-    </article>`;
-}
-
-function handleCardAction(ev){
-  const id = ev.currentTarget.dataset.id;
-  const action = ev.currentTarget.dataset.action;
-  if(action === 'edit') openDialogForEdit(id);
-  if(action === 'work') updateAnomalyStatus(id, 'In lavorazione');
-  if(action === 'done') updateAnomalyStatus(id, 'Risolta');
-  if(action === 'delete') deleteAnomaly(id);
-}
-function updateAnomalyStatus(id, status){
-  state.anomalies = state.anomalies.map(a => a.id === id ? {...a, status} : a);
-  saveAnomalies(); renderZone(); renderPanel();
-}
-function deleteAnomaly(id){
-  if(!confirm('Eliminare questa anomalia?')) return;
-  state.anomalies = state.anomalies.filter(a => a.id !== id);
-  saveAnomalies(); renderZone(); renderPanel();
-}
-
-function openDialogForNew(pointId){
-  const point = pointById(state.zone, pointId);
-  document.getElementById('dialogTitle').textContent = `Nuova anomalia - ${point.id}`;
-  document.getElementById('editId').value = '';
-  document.getElementById('selectedPointId').value = pointId;
-  document.getElementById('fieldDatetime').value = nowLocal();
-  document.getElementById('fieldShift').value = 'Mattina';
-  document.getElementById('fieldOperator').value = '';
-  document.getElementById('fieldPriority').value = 'Media';
-  document.getElementById('fieldStatus').value = 'Aperta';
-  document.getElementById('fieldAssigned').value = '';
-  document.getElementById('fieldTitle').value = '';
-  document.getElementById('fieldDescription').value = '';
-  document.getElementById('fieldAction').value = '';
-  ui.dialog.showModal();
-}
-function openDialogForEdit(id){
-  const a = state.anomalies.find(x => x.id === id);
-  if(!a) return;
-  document.getElementById('dialogTitle').textContent = `Modifica anomalia - ${a.pointId}`;
-  document.getElementById('editId').value = a.id;
-  document.getElementById('selectedPointId').value = a.pointId;
-  document.getElementById('fieldDatetime').value = a.datetime;
-  document.getElementById('fieldShift').value = a.shift;
-  document.getElementById('fieldOperator').value = a.operator || '';
-  document.getElementById('fieldPriority').value = a.priority;
-  document.getElementById('fieldStatus').value = a.status;
-  document.getElementById('fieldAssigned').value = a.assigned || '';
-  document.getElementById('fieldTitle').value = a.title;
-  document.getElementById('fieldDescription').value = a.description;
-  document.getElementById('fieldAction').value = a.action || '';
-  ui.dialog.showModal();
-}
-function submitDialog(ev){
-  ev.preventDefault();
-  const editId = document.getElementById('editId').value;
-  const pointId = document.getElementById('selectedPointId').value;
-  const point = pointById(state.zone, pointId);
-  if(!point) return;
-  const payload = {
-    id: editId || Date.now().toString(),
-    zoneId: state.zone,
-    zoneName: ZONES[state.zone].name,
-    pointId,
-    pointLabel: point.label,
-    type: point.type,
-    datetime: document.getElementById('fieldDatetime').value,
-    shift: document.getElementById('fieldShift').value,
-    operator: document.getElementById('fieldOperator').value.trim(),
-    priority: document.getElementById('fieldPriority').value,
-    status: document.getElementById('fieldStatus').value,
-    assigned: document.getElementById('fieldAssigned').value.trim(),
-    title: document.getElementById('fieldTitle').value.trim(),
-    description: document.getElementById('fieldDescription').value.trim(),
-    action: document.getElementById('fieldAction').value.trim(),
+async function saveAnomaly(e){
+  e.preventDefault();
+  if(!state.selectedPoint){ toast('Seleziona prima un punto.'); return; }
+  const body = {
+    zone: `Zona ${state.zone}`,
+    point_id: state.selectedPoint.id,
+    point_label: state.selectedPoint.label,
+    title: $('aTitle').value.trim(),
+    shift: $('aShift').value,
+    priority: $('aPriority').value,
+    description: $('aDescription').value.trim(),
+    action: $('aAction').value.trim(),
+    operator_name: $('aOperator').value.trim(),
+    status: 'aperta',
+    source_device: navigator.userAgent.slice(0,180)
   };
-  if(editId) state.anomalies = state.anomalies.map(a => a.id === editId ? payload : a);
-  else state.anomalies.unshift(payload);
-  saveAnomalies();
-  ui.dialog.close();
-  renderZone();
-  renderPanel();
+  try{
+    let saved;
+    if(state.apiUrl){
+      saved = await apiFetch('/api/anomalies', {method:'POST', body: JSON.stringify(body)});
+      state.anomalies.unshift(saved.item);
+      updateSyncStatus('Online D1', 'online');
+    }else{
+      saved = {item: {...body, id: crypto.randomUUID(), created_at: new Date().toISOString(), updated_at: new Date().toISOString()}};
+      state.anomalies.unshift(saved.item);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.anomalies));
+    }
+    e.target.reset();
+    $('aPriority').value = 'media';
+    $('anomalyForm').classList.add('hidden');
+    $('lastUpdate').textContent = new Date().toLocaleString('it-IT');
+    renderAnomalies();
+  }catch(err){
+    console.error(err); toast('Errore salvataggio: controlla URL API e chiave.');
+  }
 }
 
-function renderStats(){
-  const open = state.anomalies.filter(a => a.status === 'Aperta').length;
-  const work = state.anomalies.filter(a => a.status === 'In lavorazione').length;
-  const done = state.anomalies.filter(a => a.status === 'Risolta').length;
-  const total = state.anomalies.length;
-  document.getElementById('statAperte').textContent = open;
-  document.getElementById('statLav').textContent = work;
-  document.getElementById('statRisolte').textContent = done;
-  document.getElementById('statTotali').textContent = total;
-  document.getElementById('footerOpen').textContent = open;
-  const updated = localStorage.getItem(STORAGE_KEY + '_updated');
-  document.getElementById('lastUpdate').textContent = updated ? fmt(updated) : '--';
-  document.getElementById('reportText').value = buildReport();
+async function updateAnomalyStatus(id, status){
+  try{
+    if(state.apiUrl){
+      const res = await apiFetch(`/api/anomalies/${encodeURIComponent(id)}`, {method:'PATCH', body: JSON.stringify({status})});
+      state.anomalies = state.anomalies.map(a => a.id === id ? res.item : a);
+    }else{
+      state.anomalies = state.anomalies.map(a => a.id === id ? {...a, status, updated_at:new Date().toISOString()} : a);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.anomalies));
+    }
+    renderAnomalies();
+  }catch(err){ toast('Errore aggiornamento stato.'); }
 }
-function renderLists(){
-  const all = [...state.anomalies].sort((a,b)=>new Date(b.datetime)-new Date(a.datetime));
-  document.getElementById('allAnomalies').innerHTML = all.length ? all.map(renderListRow).join('') : `<div class="empty-list">Nessuna anomalia registrata.</div>`;
-  const history = all.filter(a => a.status === 'Risolta');
-  document.getElementById('historyList').innerHTML = history.length ? history.map(renderListRow).join('') : `<div class="empty-list">Nessuna anomalia risolta nello storico.</div>`;
+
+async function deleteAnomaly(id){
+  if(!confirm('Eliminare questa anomalia?')) return;
+  try{
+    if(state.apiUrl) await apiFetch(`/api/anomalies/${encodeURIComponent(id)}`, {method:'DELETE'});
+    state.anomalies = state.anomalies.filter(a => a.id !== id);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.anomalies));
+    renderAnomalies();
+  }catch(err){ toast('Errore eliminazione.'); }
 }
-function renderListRow(a){
-  return `<div class="list-row">
-    <div><b>${esc(a.zoneName)}</b><small>${fmt(a.datetime)} • ${esc(a.shift)}</small></div>
-    <div><b>${esc(a.pointId)} - ${esc(a.title)}</b><small>${esc(a.description)}</small></div>
-    <div><span class="tag state ${statusClass(a.status)}">${esc(a.status)}</span></div>
-  </div>`;
+
+async function apiFetch(path, opts={}){
+  const url = state.apiUrl.replace(/\/$/,'') + path;
+  const headers = {'Content-Type':'application/json'};
+  if(state.apiKey) headers['X-APP-KEY'] = state.apiKey;
+  const res = await fetch(url, {...opts, headers:{...headers, ...(opts.headers||{})}});
+  const text = await res.text();
+  let data = text ? JSON.parse(text) : {};
+  if(!res.ok) throw new Error(data.error || res.statusText);
+  return data;
 }
-function buildReport(){
-  if(!state.anomalies.length) return 'Nessuna anomalia registrata.';
-  return state.anomalies
-    .slice()
-    .sort((a,b)=>new Date(a.datetime)-new Date(b.datetime))
-    .map(a => `[${fmt(a.datetime)}] ${a.zoneName} - ${a.pointId} - ${a.pointLabel}\nTurno: ${a.shift} | Stato: ${a.status} | Priorità: ${a.priority}\nTitolo: ${a.title}\nDescrizione: ${a.description}\nConsegna: ${a.action || '-'}\nOperatore: ${a.operator || '-'} | Assegnata a: ${a.assigned || '-'}\n`)
-    .join('\n-----------------------------\n');
+
+function openBackendDialog(){
+  $('apiUrlInput').value = state.apiUrl;
+  $('apiKeyInput').value = state.apiKey;
+  $('backendMsg').textContent = '';
+  $('backendDialog').showModal();
 }
-function downloadFile(filename, content, type='text/plain'){
-  const blob = new Blob([content], {type});
+function saveBackendConfig(e){
+  e.preventDefault();
+  state.apiUrl = $('apiUrlInput').value.trim().replace(/\/$/,'');
+  state.apiKey = $('apiKeyInput').value.trim();
+  localStorage.setItem(API_URL_KEY, state.apiUrl);
+  localStorage.setItem(API_KEY_KEY, state.apiKey);
+  $('backendMsg').textContent = 'Configurazione salvata.';
+  loadAnomalies();
+}
+async function testBackend(e){
+  e.preventDefault();
+  const oldUrl = state.apiUrl, oldKey = state.apiKey;
+  state.apiUrl = $('apiUrlInput').value.trim().replace(/\/$/,'');
+  state.apiKey = $('apiKeyInput').value.trim();
+  try{ const res = await apiFetch('/api/health'); $('backendMsg').textContent = 'Test OK: ' + (res.status || 'online'); }
+  catch(err){ $('backendMsg').textContent = 'Test fallito: ' + err.message; }
+  finally{ state.apiUrl = oldUrl; state.apiKey = oldKey; }
+}
+
+function exportTxt(){
+  const rows = state.anomalies.map(a => `[${formatDate(a.created_at)}] ${a.zone} - ${a.point_label}\nStato: ${labelStatus(a.status)} | Priorità: ${labelPriority(a.priority)} | Turno: ${a.shift}\nTitolo: ${a.title}\nDescrizione: ${a.description}\nConsegna: ${a.action || '-'}\nOperatore: ${a.operator_name || '-'}\n`).join('\n-----------------------------\n');
+  const blob = new Blob([rows], {type:'text/plain;charset=utf-8'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = filename; a.click();
+  a.href = url; a.download = 'passaggio-consegne-anomalie.txt'; a.click();
   URL.revokeObjectURL(url);
 }
-function exportText(){ downloadFile('passaggio-consegne.txt', buildReport(), 'text/plain'); }
-function exportJson(){ downloadFile('backup-passaggio-consegne.json', JSON.stringify(state.anomalies, null, 2), 'application/json'); }
 
-function setZoom(value){
-  const isMobile = window.matchMedia('(max-width:760px)').matches;
-  const minZoom = isMobile ? 1 : 0.75;
-  state.zoom = Math.max(minZoom, Math.min(2.5, value));
-  ui.layoutStage.style.transform = `scale(${state.zoom})`;
-  ui.layoutStage.style.marginBottom = `${Math.max(0, state.zoom - 1) * ui.layoutStage.offsetHeight}px`;
-  ui.zoomReset.textContent = `${Math.round(state.zoom * 100)}%`;
+function updateSyncStatus(text, cls){
+  const el = $('syncStatus'); el.textContent = text; el.className = 'sync-status ' + (cls || '');
 }
-
-function setupEvents(){
-  ui.zoneTabs.forEach(btn => btn.addEventListener('click', () => {
-    state.zone = btn.dataset.zone;
-    state.selectedPointId = null;
-    ui.zoneTabs.forEach(b => b.classList.toggle('active', b === btn));
-    ui.detailPanel.classList.remove('open');
-    renderZone();
-    renderPanel();
-  }));
-
-  document.querySelectorAll('.filter').forEach(btn => btn.addEventListener('click', () => {
-    state.filter = btn.dataset.filter;
-    document.querySelectorAll('.filter').forEach(b => b.classList.toggle('active', b === btn));
-    renderZone();
-  }));
-
-  ui.menuBtns.forEach(btn => btn.addEventListener('click', () => {
-    const view = btn.dataset.view;
-    ui.menuBtns.forEach(b => b.classList.toggle('active', b === btn));
-    ui.views.forEach(v => v.classList.toggle('active', v.id === `view-${view}`));
-    document.getElementById('sidebar').classList.remove('open');
-    renderStats(); renderLists();
-  }));
-
-  ui.layoutStage.addEventListener('click', selectPointFromClick);
-  ui.layoutStage.addEventListener('touchend', (ev) => {
-    if(ev.changedTouches.length !== 1) return;
-    selectPointFromClick(ev.changedTouches[0]);
-  }, {passive:true});
-
-  ui.pointSelect.addEventListener('change', () => {
-    if(ui.pointSelect.value) selectPoint(ui.pointSelect.value);
-  });
-
-  ui.hotspotToggle.addEventListener('change', () => renderZone());
-  document.getElementById('zoomIn').addEventListener('click', () => setZoom(state.zoom + 0.15));
-  document.getElementById('zoomOut').addEventListener('click', () => setZoom(state.zoom - 0.15));
-  document.getElementById('zoomReset').addEventListener('click', () => setZoom(1));
-  window.addEventListener('resize', () => {
-    if(window.matchMedia('(max-width:760px)').matches && state.zoom < 1) setZoom(1);
-  });
-  ui.closePanel.addEventListener('click', () => ui.detailPanel.classList.remove('open'));
-  ui.form.addEventListener('submit', submitDialog);
-  document.getElementById('cancelDialog').addEventListener('click', () => ui.dialog.close());
-  document.getElementById('collapseBtn').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('collapsed'));
-  document.getElementById('hamburger').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
-
-  document.getElementById('exportText').addEventListener('click', exportText);
-  document.getElementById('quickExport').addEventListener('click', exportText);
-  document.getElementById('exportJson').addEventListener('click', exportJson);
-  document.getElementById('printBtn').addEventListener('click', () => window.print());
-  document.getElementById('quickPrint').addEventListener('click', () => window.print());
-  document.getElementById('clearAll').addEventListener('click', () => {
-    if(confirm('Cancellare tutto il registro anomalie?')){
-      state.anomalies = [];
-      saveAnomalies(); renderZone(); renderPanel();
-    }
-  });
-  document.getElementById('importJson').addEventListener('change', async (ev) => {
-    const file = ev.target.files[0];
-    if(!file) return;
-    try{
-      state.anomalies = JSON.parse(await file.text());
-      saveAnomalies(); renderZone(); renderPanel();
-      alert('Backup importato correttamente.');
-    }catch{
-      alert('File non valido.');
-    }
-  });
-
-  setInterval(() => {
-    document.getElementById('clock').textContent = new Date().toLocaleString('it-IT', {dateStyle:'short', timeStyle:'short'});
-  }, 1000);
-}
-
-function setupPwa(){
-  if('serviceWorker' in navigator){
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('service-worker.js').catch(()=>{});
-    });
-  }
-  let installPrompt;
-  window.addEventListener('beforeinstallprompt', ev => {
-    ev.preventDefault(); installPrompt = ev;
-    const btn = document.getElementById('installBtn');
-    btn.classList.remove('hidden');
-    btn.onclick = async () => { await installPrompt.prompt(); btn.classList.add('hidden'); };
-  });
-}
-
-setupEvents();
-setupPwa();
-renderZone();
-renderPanel();
-renderStats();
-setZoom(1);
+function toast(msg){ alert(msg); }
+function labelStatus(s){ return ({aperta:'Aperta', lavorazione:'In lavorazione', risolta:'Risolta'}[s] || s || '-'); }
+function labelPriority(p){ return ({alta:'Alta', media:'Media', bassa:'Bassa'}[p] || p || '-'); }
+function formatDate(value){ if(!value) return '-'; const d = new Date(value); return isNaN(d) ? value : d.toLocaleString('it-IT'); }
+function escapeHtml(str){ return String(str ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
+function escapeAttr(str){ return escapeHtml(str).replace(/`/g,'&#96;'); }

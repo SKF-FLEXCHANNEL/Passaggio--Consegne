@@ -1,39 +1,79 @@
-# Passaggio Consegne - Layout interattivo anomalie
+# Passaggio Consegne - Webapp condivisa
 
-Webapp/PWA per registrare anomalie di turno su layout interattivo di Zona 1, Zona 2 e Zona 3.
+Webapp per registrare anomalie di turno sulle tre zone della linea, con layout interattivo e backend Cloudflare Workers/D1.
 
-## Versione V5
-
-Correzione mobile:
-- la mappa si adatta alla larghezza del telefono;
-- non viene più forzata a 980px;
-- i pulsanti Zona 1, Zona 2, Zona 3 non coprono più il contenuto;
-- il dettaglio del punto si apre dal basso come pannello mobile;
-- resta disponibile lo zoom con i pulsanti + e -;
-- le scritte del layout sono cliccabili tramite aree trasparenti.
-
-## Pubblicazione su GitHub Pages
-
-1. Carica tutti i file nella repository.
-2. Vai su Settings > Pages.
-3. Seleziona Deploy from branch.
-4. Scegli branch `main` e cartella `/root`.
-5. Apri il sito con `?v=5` finale la prima volta, per evitare cache vecchie.
-
-Esempio:
+## Struttura
 
 ```text
-https://TUO-UTENTE.github.io/NOME-REPOSITORY/?v=5
+passaggio-consegne-cloudflare-d1/
+├── index.html
+├── style.css
+├── app.js
+├── manifest.json
+├── service-worker.js
+├── img/
+│   ├── zona1.jpg
+│   ├── zona2.jpg
+│   └── zona3.jpg
+├── icons/
+│   ├── icon-192.png
+│   └── icon-512.png
+├── data/
+│   └── README-punti.md
+└── backend/
+    ├── src/worker.js
+    ├── schema.sql
+    ├── wrangler.toml
+    ├── package.json
+    └── README.md
 ```
 
-## File principali
+## Come funziona
 
-- `index.html`: struttura app
-- `style.css`: grafica e correzione mobile
-- `app.js`: punti cliccabili, anomalie, report, salvataggio locale
-- `img/zona1.jpg`, `img/zona2.jpg`, `img/zona3.jpg`: layout ripuliti
-- `manifest.json` e `service-worker.js`: installazione PWA
+- La parte frontend può essere caricata su GitHub Pages.
+- Il backend Cloudflare Worker salva e legge le anomalie nel database D1.
+- Ogni telefono o PC vede gli stessi dati quando usa lo stesso URL API.
+- Se il backend non è configurato, la webapp continua a funzionare in locale sul singolo dispositivo.
 
-## Dati
+## Pubblicazione frontend su GitHub Pages
 
-Le anomalie vengono salvate nel browser con `localStorage`. Per un uso condiviso tra più telefoni/PC bisogna aggiungere un backend, ad esempio Google Sheets, Firebase o Cloudflare Workers/D1.
+Carica nella repository GitHub questi file e cartelle:
+
+```text
+index.html
+style.css
+app.js
+manifest.json
+service-worker.js
+img/
+icons/
+data/
+```
+
+Poi vai su **Settings > Pages** e attiva GitHub Pages sul branch principale.
+
+## Backend Cloudflare
+
+Le istruzioni sono dentro:
+
+```text
+backend/README.md
+```
+
+Dopo la pubblicazione del Worker, apri la webapp e vai su:
+
+```text
+⚙ Backend
+```
+
+Inserisci:
+
+1. URL API Cloudflare Worker
+2. Chiave/PIN `APP_WRITE_KEY`
+
+Poi premi **Test** e **Salva**.
+
+## Regolazione punti cliccabili
+
+I punti sono in `app.js`, dentro `ZONES`.
+Attiva nell'app **Mostra aree cliccabili** per vedere le zone trasparenti sopra le scritte.

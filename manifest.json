@@ -1,15 +1,12 @@
 {
-  "name": "Passaggio Consegne Anomalie",
+  "name": "Passaggio Consegne",
   "short_name": "Consegne",
-  "description": "Registro anomalie turno con layout interattivo cliccabile sulle scritte",
-  "start_url": "./index.html?v=5",
-  "scope": "./",
+  "start_url": "./index.html?v=6",
   "display": "standalone",
-  "background_color": "#07111f",
+  "background_color": "#06111f",
   "theme_color": "#071827",
-  "orientation": "any",
   "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
   ]
 }
