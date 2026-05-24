@@ -1,39 +1,44 @@
-# Backend Cloudflare Workers + D1 - V9
+# Backend Cloudflare Workers/D1 - V11
 
-Questa versione aggiunge l'endpoint:
+## Secrets da creare nel Worker
 
-```text
-GET /api/logs?limit=500
-```
+Nel pannello Cloudflare vai su:
 
-Serve per visualizzare lo storico consegne nella webapp.
+Workers & Pages → passaggio-consegne-api → Settings → Variables and Secrets
 
-## Da fare su Cloudflare senza Wrangler
-
-1. Apri Cloudflare.
-2. Vai su **Workers & Pages**.
-3. Apri il Worker `passaggio-consegne-api`.
-4. Clicca **Edit code**.
-5. Sostituisci tutto il codice con `backend/src/worker.js`.
-6. Premi **Deploy**.
-
-## Controlli
-
-Apri:
+Crea questi Secrets:
 
 ```text
-https://passaggio-consegne-api.vocidicassino.workers.dev/api/health
+APP_USER_PIN=1234
+APP_ADMIN_PIN=9999
 ```
 
-Poi apri:
+Puoi scegliere PIN diversi. `APP_USER_PIN` è quello che darai agli operatori. `APP_ADMIN_PIN` resta solo a chi configura l'app.
+
+`APP_WRITE_KEY` è opzionale e serve solo per compatibilità con le versioni precedenti.
+
+## D1 binding
+
+Il binding D1 deve chiamarsi:
 
 ```text
-https://passaggio-consegne-api.vocidicassino.workers.dev/api/logs?limit=10
+DB
 ```
 
-Se vedi una risposta JSON, lo storico è attivo.
+## Migrazione V11
 
-## Database
+Se il database esiste già, apri D1 → Console ed esegui:
 
-Se hai già creato il database con lo schema precedente, non devi fare altro.
-Se parti da zero, usa `schema.sql`.
+```sql
+ALTER TABLE anomalies ADD COLUMN problem_type TEXT DEFAULT 'altro';
+CREATE INDEX IF NOT EXISTS idx_anomalies_problem_type ON anomalies(problem_type);
+
+ALTER TABLE anomaly_log ADD COLUMN zone TEXT DEFAULT '';
+ALTER TABLE anomaly_log ADD COLUMN point_id TEXT DEFAULT '';
+ALTER TABLE anomaly_log ADD COLUMN point_label TEXT DEFAULT '';
+ALTER TABLE anomaly_log ADD COLUMN title TEXT DEFAULT '';
+ALTER TABLE anomaly_log ADD COLUMN problem_type TEXT DEFAULT '';
+CREATE INDEX IF NOT EXISTS idx_log_created ON anomaly_log(created_at);
+```
+
+Se una riga dà errore perché la colonna esiste già, vai avanti con la riga successiva.

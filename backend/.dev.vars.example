@@ -1,1 +1,5 @@
-APP_WRITE_KEY=metti-qui-un-pin-o-una-chiave-lunga
+# Copia questo file in .dev.vars solo per test locale.
+# In Cloudflare Dashboard imposta questi valori come Secrets.
+APP_USER_PIN=1234
+APP_ADMIN_PIN=9999
+APP_WRITE_KEY=
