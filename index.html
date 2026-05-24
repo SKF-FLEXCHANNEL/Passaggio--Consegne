@@ -6,7 +6,7 @@
   <title>Passaggio Consegne</title>
   <meta name="theme-color" content="#071827" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=6" />
+  <link rel="stylesheet" href="style.css?v=7" />
 </head>
 <body>
   <header class="topbar">
@@ -22,6 +22,28 @@
       <button id="backendBtn" class="ghost-btn">⚙ Backend</button>
     </div>
   </header>
+
+  <div id="drawerBackdrop" class="drawer-backdrop" aria-hidden="true"></div>
+  <aside id="sideDrawer" class="side-drawer" aria-label="Menu laterale">
+    <div class="drawer-head">
+      <div>
+        <h2>Menu</h2>
+        <p>Passaggio Consegne</p>
+      </div>
+      <button id="closeMenuBtn" class="icon-btn" type="button">×</button>
+    </div>
+    <div class="drawer-stat"><span class="dot red"></span><b id="drawerOpenCount">0</b> anomalie aperte</div>
+    <button type="button" data-menu-action="layout">▦ Layout linea</button>
+    <button type="button" data-menu-action="all">☷ Tutte le anomalie</button>
+    <button type="button" data-menu-action="open">● Solo anomalie aperte</button>
+    <button type="button" data-menu-action="refresh">↻ Aggiorna da D1</button>
+    <button type="button" data-menu-action="areas">◎ Mostra/Nascondi aree cliccabili</button>
+    <button type="button" data-menu-action="focus">⛶ Mappa grande</button>
+    <button type="button" data-menu-action="export">⇩ Esporta consegne</button>
+    <button type="button" data-menu-action="print">⎙ Stampa / PDF</button>
+    <button type="button" data-menu-action="backend">⚙ Backend Cloudflare</button>
+    <p class="drawer-note">Le scritte nella foto non sono veri pulsanti: sopra ogni scritta c’è un’area cliccabile invisibile. Usa “Mostra aree cliccabili” per controllarle.</p>
+  </aside>
 
   <nav class="zone-tabs" aria-label="Selezione zona">
     <button class="zone-tab active" data-zone="1">Zona 1</button>
@@ -162,6 +184,6 @@
     </form>
   </dialog>
 
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>

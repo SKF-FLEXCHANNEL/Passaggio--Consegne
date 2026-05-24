@@ -1,10 +1,8 @@
-const CACHE_NAME = 'passaggio-consegne-mobile-fix-v5';
+const CACHE_NAME = 'passaggio-consegne-v7';
 const ASSETS = [
-  './',
-  './index.html?v=5',
-  './index.html',
-  './style.css?v=5',
-  './app.js?v=5',
+  './index.html?v=7',
+  './style.css?v=7',
+  './app.js?v=7',
   './manifest.json',
   './img/zona1.jpg',
   './img/zona2.jpg',
@@ -14,27 +12,15 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', event => {
-  self.skipWaiting();
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)));
+  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
-      .then(() => self.clients.claim())
-  );
+  event.waitUntil(caches.keys().then(keys => Promise.all(keys.map(k => k !== CACHE_NAME ? caches.delete(k) : null))).then(() => self.clients.claim()));
 });
 
 self.addEventListener('fetch', event => {
-  const request = event.request;
-  if(request.method !== 'GET') return;
-  event.respondWith(
-    fetch(request)
-      .then(response => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
-        return response;
-      })
-      .catch(() => caches.match(request).then(cached => cached || caches.match('./index.html')))
-  );
+  const url = new URL(event.request.url);
+  if (url.pathname.includes('/api/')) return;
+  event.respondWith(fetch(event.request).catch(() => caches.match(event.request).then(res => res || caches.match('./index.html?v=7'))));
 });

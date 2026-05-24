@@ -1,43 +1,19 @@
-# Passaggio Consegne - Webapp condivisa
+# Passaggio Consegne - V7
 
-Webapp per registrare anomalie di turno sulle tre zone della linea, con layout interattivo e backend Cloudflare Workers/D1.
+Webapp per registrare anomalie e passaggio consegne con layout interattivo di Zona 1, Zona 2 e Zona 3.
 
-## Struttura
+## Novità V7
 
-```text
-passaggio-consegne-cloudflare-d1/
-├── index.html
-├── style.css
-├── app.js
-├── manifest.json
-├── service-worker.js
-├── img/
-│   ├── zona1.jpg
-│   ├── zona2.jpg
-│   └── zona3.jpg
-├── icons/
-│   ├── icon-192.png
-│   └── icon-512.png
-├── data/
-│   └── README-punti.md
-└── backend/
-    ├── src/worker.js
-    ├── schema.sql
-    ├── wrangler.toml
-    ├── package.json
-    └── README.md
-```
+- Menu laterale funzionante tramite pulsante ☰ vicino al titolo.
+- Aree cliccabili riallineate sulle scritte presenti nelle immagini.
+- Comando **Mostra aree cliccabili** per controllare dove si può cliccare.
+- Pulsante **Mappa grande** dal menu laterale.
+- Compatibile con backend Cloudflare Workers/D1 già configurato.
+- Cache aggiornata a `v=7`.
 
-## Come funziona
+## Pubblicazione su GitHub Pages
 
-- La parte frontend può essere caricata su GitHub Pages.
-- Il backend Cloudflare Worker salva e legge le anomalie nel database D1.
-- Ogni telefono o PC vede gli stessi dati quando usa lo stesso URL API.
-- Se il backend non è configurato, la webapp continua a funzionare in locale sul singolo dispositivo.
-
-## Pubblicazione frontend su GitHub Pages
-
-Carica nella repository GitHub questi file e cartelle:
+Carica tutti i file nella repository GitHub Pages, mantenendo la struttura:
 
 ```text
 index.html
@@ -45,35 +21,33 @@ style.css
 app.js
 manifest.json
 service-worker.js
-img/
-icons/
-data/
+img/zona1.jpg
+img/zona2.jpg
+img/zona3.jpg
+icons/icon-192.png
+icons/icon-512.png
+backend/...
 ```
 
-Poi vai su **Settings > Pages** e attiva GitHub Pages sul branch principale.
+Dopo il caricamento, apri il sito aggiungendo:
+
+```text
+?v=7
+```
+
+Esempio:
+
+```text
+https://marconeri70.github.io/passaggio-consegne/?v=7
+```
+
+Se il telefono mostra ancora la vecchia versione, svuota la cache del sito oppure disinstalla e reinstalla la PWA.
 
 ## Backend Cloudflare
 
-Le istruzioni sono dentro:
+Il backend resta quello presente nella cartella `backend`.
+Nella webapp premi **Backend** e inserisci:
 
-```text
-backend/README.md
-```
+- URL Worker Cloudflare
+- chiave `APP_WRITE_KEY`
 
-Dopo la pubblicazione del Worker, apri la webapp e vai su:
-
-```text
-⚙ Backend
-```
-
-Inserisci:
-
-1. URL API Cloudflare Worker
-2. Chiave/PIN `APP_WRITE_KEY`
-
-Poi premi **Test** e **Salva**.
-
-## Regolazione punti cliccabili
-
-I punti sono in `app.js`, dentro `ZONES`.
-Attiva nell'app **Mostra aree cliccabili** per vedere le zone trasparenti sopra le scritte.
