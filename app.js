@@ -265,7 +265,6 @@ async function showHistory(){
   state.selectedPoint = null;
   document.querySelectorAll('.hotspot').forEach(el => el.classList.remove('selected'));
   $('pointSelect').value = '';
-  $('detailPanel').classList.add('open');
   $('newAnomalyBtn').classList.add('hidden');
   $('anomalyForm').classList.add('hidden');
   $('detailTitle').textContent = 'Storico consegne';
@@ -276,6 +275,7 @@ async function showHistory(){
   $('anomalyList').textContent = 'Caricamento storico...';
   await loadLogs();
   renderHistory();
+  openDetailSection(true);
 }
 
 
@@ -284,10 +284,10 @@ function showReport(){
   state.selectedPoint = null;
   document.querySelectorAll('.hotspot').forEach(el => el.classList.remove('selected'));
   $('pointSelect').value = '';
-  $('detailPanel').classList.add('open');
   $('newAnomalyBtn').classList.add('hidden');
   $('anomalyForm').classList.add('hidden');
   renderReport();
+  openDetailSection(true);
 }
 
 function renderReport(){
@@ -420,11 +420,10 @@ function showAllAnomalies(status='tutte'){
   $('statusFilter').value = status;
   document.querySelectorAll('.hotspot').forEach(el => el.classList.remove('selected'));
   $('pointSelect').value = '';
-  $('detailPanel').classList.add('open');
   $('newAnomalyBtn').classList.add('hidden');
   $('anomalyForm').classList.add('hidden');
   renderAnomalies();
-  setTimeout(() => $('detailPanel').scrollTo({top:0,behavior:'smooth'}), 0);
+  openDetailSection(true);
 }
 
 function toggleMapFocus(){
@@ -512,8 +511,8 @@ function selectPoint(pointId){
   $('detailSubtitle').textContent = `Zona ${state.zone}`;
   $('pointSummary').innerHTML = `<b>${escapeHtml(pt.label)}</b><br>${escapeHtml(pt.description)}<br><small>ID punto: ${escapeHtml(pt.id)}</small>`;
   $('anomalyForm').classList.add('hidden');
-  $('detailPanel').classList.add('open');
   renderAnomalies();
+  openDetailSection(true);
 }
 
 function openAnomalyPoint(zoneName, pointId){
@@ -526,7 +525,6 @@ function openAnomalyPoint(zoneName, pointId){
   const pt = ZONES[state.zone].points.find(p => p.id === pointId);
   if(pt){
     selectPoint(pt.id);
-    window.scrollTo({top:0,behavior:'smooth'});
   }
 }
 
@@ -545,6 +543,21 @@ function resetDetail(){
 }
 function closeDetail(){
   $('detailPanel').classList.remove('open');
+}
+
+function isMobileDetailSection(){
+  return window.matchMedia && window.matchMedia('(max-width: 900px)').matches;
+}
+
+function openDetailSection(scroll=true){
+  const panel = $('detailPanel');
+  if(!panel) return;
+  panel.classList.add('open');
+  if(scroll && isMobileDetailSection()){
+    setTimeout(() => panel.scrollIntoView({behavior:'smooth', block:'start'}), 80);
+  }else if(scroll){
+    setTimeout(() => panel.scrollTo({top:0, behavior:'smooth'}), 0);
+  }
 }
 
 async function loadAnomalies(options={}){

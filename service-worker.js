@@ -1,8 +1,8 @@
-const CACHE_NAME = 'passaggio-consegne-v16';
+const CACHE_NAME = 'passaggio-consegne-v17';
 const ASSETS = [
-  './index.html?v=16',
-  './style.css?v=16',
-  './app.js?v=16',
+  './index.html?v=17',
+  './style.css?v=17',
+  './app.js?v=17',
   './manifest.json',
   './img/zona1.jpg',
   './img/zona2.jpg',
@@ -22,5 +22,5 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   if (url.pathname.includes('/api/')) return;
-  event.respondWith(fetch(event.request).catch(() => caches.match(event.request).then(res => res || caches.match('./index.html?v=16'))));
+  event.respondWith(fetch(event.request).catch(() => caches.match(event.request).then(res => res || caches.match('./index.html?v=17'))));
 });
