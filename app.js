@@ -1,7 +1,7 @@
 /* Passaggio Consegne - Frontend condiviso Cloudflare Workers/D1
-   Versione 14: avviso interno app per nuove segnalazioni.
+   Versione 18: cambio tipologia con avanzamento punti.
 */
-const APP_VERSION = '14.0.0-internal-new-alert';
+const APP_VERSION = '18.0.0-changeover';
 const DEFAULT_API_URL = 'https://passaggio-consegne-api.vocidicassino.workers.dev';
 const AUTO_SYNC_MS = 15000;
 const LOG_STORAGE_KEY = 'pc_anomalie_log_local_v9';
@@ -11,6 +11,8 @@ const API_KEY_KEY = 'pc_api_key';
 const USER_PIN_KEY = 'pc_user_pin_v11';
 const ADMIN_PIN_SESSION_KEY = 'pc_admin_pin_session_v13';
 const SOUND_ENABLED_KEY = 'pc_internal_alert_sound_v14';
+const CHANGEOVER_STORAGE_KEY = 'pc_changeovers_local_v18';
+const CHANGEOVER_POINTS_STORAGE_KEY = 'pc_changeover_points_local_v18';
 
 const ZONES = {
   1: {
@@ -148,7 +150,12 @@ const state = {
   alertTimer: null,
   soundEnabled: localStorage.getItem(SOUND_ENABLED_KEY) === '1',
   audioCtx: null,
-  lastDataSource: ''
+  lastDataSource: '',
+  changeovers: [],
+  changeoverPoints: [],
+  activeChangeover: null,
+  changePhase: 'out',
+  selectedChangePoint: null
 };
 
 const $ = (id) => document.getElementById(id);
@@ -239,6 +246,7 @@ function handleMenuAction(action){
   if(action === 'all') return showAllAnomalies('tutte');
   if(action === 'history') return showHistory();
   if(action === 'report') return showReport();
+  if(action === 'changeover') return showChangeover();
   if(action === 'refresh') return loadAnomalies();
   if(action === 'notify') return enableInternalAlertSound(true);
   if(action === 'export') return exportTxt();
@@ -414,6 +422,391 @@ function downloadText(filename, text){
   URL.revokeObjectURL(url);
 }
 
+
+
+/* V18 - Cambio tipologia */
+async function showChangeover(){
+  state.listMode = 'changeover';
+  state.selectedPoint = null;
+  state.selectedChangePoint = null;
+  $('pointSelect').value = '';
+  $('statusFilter').value = 'tutte';
+  $('newAnomalyBtn').classList.add('hidden');
+  $('anomalyForm').classList.add('hidden');
+  document.querySelectorAll('.hotspot').forEach(el => el.classList.remove('selected'));
+  $('detailTitle').textContent = 'Cambio tipologia';
+  $('detailSubtitle').textContent = 'Smontaggio tipo uscente e montaggio nuovo tipo';
+  $('pointSummary').innerHTML = '<b>Caricamento cambio tipo...</b>';
+  $('pointCount').textContent = '...';
+  $('anomalyList').className = 'anomaly-list empty';
+  $('anomalyList').textContent = 'Caricamento dati cambio tipologia...';
+  openDetailSection(true);
+  await loadChangeovers();
+  renderChangeover();
+}
+
+async function loadChangeovers(){
+  try{
+    if(state.apiUrl){
+      const data = await apiFetch('/api/changeovers?status=attivo&limit=20');
+      state.changeovers = data.items || [];
+      state.activeChangeover = state.changeovers[0] || null;
+      if(state.activeChangeover){
+        const pts = await apiFetch(`/api/changeovers/${encodeURIComponent(state.activeChangeover.id)}/points`);
+        state.changeoverPoints = pts.items || [];
+      }else{
+        state.changeoverPoints = [];
+      }
+    }else{
+      state.changeovers = JSON.parse(localStorage.getItem(CHANGEOVER_STORAGE_KEY) || '[]');
+      state.activeChangeover = state.changeovers.find(c => c.status === 'attivo') || null;
+      state.changeoverPoints = JSON.parse(localStorage.getItem(CHANGEOVER_POINTS_STORAGE_KEY) || '[]').filter(x => !state.activeChangeover || x.changeover_id === state.activeChangeover.id);
+    }
+  }catch(err){
+    console.error(err);
+    state.changeovers = JSON.parse(localStorage.getItem(CHANGEOVER_STORAGE_KEY) || '[]');
+    state.activeChangeover = state.changeovers.find(c => c.status === 'attivo') || null;
+    state.changeoverPoints = JSON.parse(localStorage.getItem(CHANGEOVER_POINTS_STORAGE_KEY) || '[]').filter(x => !state.activeChangeover || x.changeover_id === state.activeChangeover.id);
+    toast('Cambio tipologia: backend non raggiungibile, uso dati locali.');
+  }
+}
+
+function renderChangeover(){
+  if(state.listMode !== 'changeover') return;
+  $('newAnomalyBtn').classList.add('hidden');
+  $('anomalyForm').classList.add('hidden');
+  $('detailPanel').classList.add('open');
+  $('detailTitle').textContent = 'Cambio tipologia';
+  $('detailSubtitle').textContent = 'Gestione condivisa smontaggio/montaggio';
+  applyChangeoverOverlay();
+
+  if(!state.activeChangeover){
+    $('pointSummary').innerHTML = '<b>Nessun cambio tipo attivo</b><br>Avvia un nuovo cambio tipologia indicando il tipo che stai togliendo e il nuovo tipo da montare.';
+    $('pointCount').textContent = '0';
+    $('anomalyList').className = 'anomaly-list changeover-list';
+    $('anomalyList').innerHTML = changeoverStartFormHtml();
+    const form = $('changeoverStartForm');
+    if(form) form.addEventListener('submit', startChangeover);
+    return;
+  }
+
+  const zoneNum = String(state.activeChangeover.zone || `Zona ${state.zone}`).replace(/\D/g,'') || state.zone;
+  if(ZONES[zoneNum] && zoneNum !== state.zone){
+    state.zone = zoneNum;
+    document.querySelectorAll('.zone-tab').forEach(b => b.classList.toggle('active', b.dataset.zone === state.zone));
+    renderZone();
+  }
+  const zonePoints = ZONES[zoneNum]?.points || [];
+  const outStats = changeoverStats('out', zonePoints);
+  const inStats = changeoverStats('in', zonePoints);
+  $('pointSummary').innerHTML = `
+    <div class="changeover-summary">
+      <div><span>Tipo da togliere</span><b>${escapeHtml(state.activeChangeover.old_type || '-')}</b><em>${outStats.done}/${outStats.total} smontati</em></div>
+      <div><span>Nuovo tipo</span><b>${escapeHtml(state.activeChangeover.new_type || '-')}</b><em>${inStats.done}/${inStats.total} montati</em></div>
+    </div>
+    <div class="changeover-progress"><span style="width:${outStats.pct}%"></span></div>
+    <div class="changeover-progress in"><span style="width:${inStats.pct}%"></span></div>
+  `;
+  $('pointCount').textContent = zonePoints.length;
+  $('anomalyList').className = 'anomaly-list changeover-list';
+  $('anomalyList').innerHTML = changeoverDashboardHtml(zonePoints, outStats, inStats);
+  bindChangeoverUi();
+}
+
+function changeoverStartFormHtml(){
+  return `<form id="changeoverStartForm" class="changeover-form">
+    <h4>Nuovo cambio tipologia</h4>
+    <label>Zona
+      <select id="coZone">
+        <option value="Zona 1" ${state.zone==='1'?'selected':''}>Zona 1</option>
+        <option value="Zona 2" ${state.zone==='2'?'selected':''}>Zona 2</option>
+        <option value="Zona 3" ${state.zone==='3'?'selected':''}>Zona 3</option>
+      </select>
+    </label>
+    <label>Tipo che si sta togliendo
+      <input id="coOldType" required placeholder="Esempio: 6304-2RS1" />
+    </label>
+    <label>Nuovo tipo da montare
+      <input id="coNewType" required placeholder="Esempio: 6305-C3" />
+    </label>
+    <label>Operatore
+      <input id="coOperator" placeholder="Nome operatore" />
+    </label>
+    <label>Note iniziali
+      <textarea id="coNotes" placeholder="Note sul cambio tipo, attrezzature, controlli da ricordare..."></textarea>
+    </label>
+    <button class="primary-btn full" type="submit">Avvia cambio tipologia</button>
+  </form>`;
+}
+
+function changeoverDashboardHtml(zonePoints, outStats, inStats){
+  const phaseLabel = state.changePhase === 'out' ? 'Tipo uscente / smontaggio' : 'Nuovo tipo / montaggio';
+  const rows = zonePoints.map(pt => {
+    const rec = getChangeoverPoint(pt.id, state.changePhase);
+    const status = rec?.status || 'todo';
+    return `<button type="button" class="changeover-point-row ${status}" data-change-point="${escapeAttr(pt.id)}">
+      <span>${escapeHtml(pt.label)}</span>
+      <b>${escapeHtml(labelChangeStatus(status, state.changePhase))}</b>
+      ${rec?.comment ? `<small>${escapeHtml(rec.comment)}</small>` : '<small>Nessun commento</small>'}
+    </button>`;
+  }).join('');
+  return `<section class="changeover-box">
+    <div class="changeover-head-actions">
+      <button type="button" class="${state.changePhase==='out'?'active':''}" data-change-phase="out">Tipo uscente</button>
+      <button type="button" class="${state.changePhase==='in'?'active':''}" data-change-phase="in">Nuovo tipo</button>
+    </div>
+    <div class="changeover-kpis">
+      <div><b>${outStats.pct}%</b><span>Smontaggio</span></div>
+      <div><b>${inStats.pct}%</b><span>Montaggio</span></div>
+    </div>
+    <p class="changeover-help"><b>${phaseLabel}</b>: verde = completato, rosso = ancora da fare, giallo = in lavorazione, arancione = da controllare.</p>
+    <div class="changeover-actions">
+      <button type="button" data-change-set-all="todo">Imposta tutti rossi</button>
+      <button type="button" data-change-set-all="done">Imposta tutti verdi</button>
+      <button type="button" data-change-export="1">Esporta riepilogo</button>
+      <button type="button" class="danger" data-change-close="1">Chiudi cambio tipo</button>
+    </div>
+    <div class="changeover-points">${rows}</div>
+  </section>`;
+}
+
+function bindChangeoverUi(){
+  $('anomalyList').querySelectorAll('[data-change-phase]').forEach(btn => btn.addEventListener('click', () => {
+    state.changePhase = btn.dataset.changePhase;
+    renderChangeover();
+  }));
+  $('anomalyList').querySelectorAll('[data-change-point]').forEach(btn => btn.addEventListener('click', () => selectPoint(btn.dataset.changePoint)));
+  $('anomalyList').querySelectorAll('[data-change-set-all]').forEach(btn => btn.addEventListener('click', () => setAllChangeoverPoints(btn.dataset.changeSetAll)));
+  const exportBtn = $('anomalyList').querySelector('[data-change-export]');
+  if(exportBtn) exportBtn.addEventListener('click', exportChangeoverTxt);
+  const closeBtn = $('anomalyList').querySelector('[data-change-close]');
+  if(closeBtn) closeBtn.addEventListener('click', closeActiveChangeover);
+}
+
+async function startChangeover(e){
+  e.preventDefault();
+  const zoneValue = $('coZone').value;
+  const zoneNumForBody = String(zoneValue).replace(/\D/g,'') || state.zone;
+  const body = {
+    zone: zoneValue,
+    old_type: $('coOldType').value.trim(),
+    new_type: $('coNewType').value.trim(),
+    operator_name: $('coOperator').value.trim(),
+    notes: $('coNotes').value.trim(),
+    status: 'attivo',
+    points: (ZONES[zoneNumForBody]?.points || []).map(pt => ({id:pt.id, label:pt.label}))
+  };
+  if(!body.old_type || !body.new_type){ toast('Inserisci tipo da togliere e nuovo tipo.'); return; }
+  try{
+    if(state.apiUrl){
+      const data = await apiFetch('/api/changeovers', {method:'POST', body: JSON.stringify(body)});
+      state.activeChangeover = data.item;
+      state.changeovers = [data.item, ...state.changeovers.filter(c => c.id !== data.item.id)];
+      state.changeoverPoints = data.points || [];
+    }else{
+      const id = crypto.randomUUID();
+      state.activeChangeover = {...body, id, created_at:new Date().toISOString(), updated_at:new Date().toISOString()};
+      const zoneNum = String(body.zone).replace(/\D/g,'') || state.zone;
+      const points = createDefaultChangeoverPoints(state.activeChangeover, ZONES[zoneNum]?.points || []);
+      state.changeovers.unshift(state.activeChangeover);
+      state.changeoverPoints = points;
+      localStorage.setItem(CHANGEOVER_STORAGE_KEY, JSON.stringify(state.changeovers));
+      localStorage.setItem(CHANGEOVER_POINTS_STORAGE_KEY, JSON.stringify(points));
+    }
+    const newZone = String(body.zone).replace(/\D/g,'') || state.zone;
+    if(newZone !== state.zone) switchZone(newZone);
+    state.listMode = 'changeover';
+    renderChangeover();
+  }catch(err){
+    console.error(err);
+    toast('Errore avvio cambio tipologia: controlla PIN app e Worker aggiornato alla V18.');
+  }
+}
+
+function createDefaultChangeoverPoints(changeover, points){
+  const now = new Date().toISOString();
+  const rows = [];
+  points.forEach(pt => ['out','in'].forEach(phase => rows.push({
+    id: crypto.randomUUID(), changeover_id: changeover.id, created_at: now, updated_at: now,
+    zone: changeover.zone, point_id: pt.id, point_label: pt.label, phase, status: 'todo', comment: '', operator_name: ''
+  })));
+  return rows;
+}
+
+function renderChangeoverPointEditor(pt){
+  if(!state.activeChangeover){ renderChangeover(); return; }
+  const rec = getChangeoverPoint(pt.id, state.changePhase) || {};
+  $('newAnomalyBtn').classList.add('hidden');
+  $('anomalyForm').classList.add('hidden');
+  $('detailTitle').textContent = `Cambio tipo - ${pt.label}`;
+  $('detailSubtitle').textContent = state.changePhase === 'out' ? `Smontaggio tipo ${state.activeChangeover.old_type || ''}` : `Montaggio tipo ${state.activeChangeover.new_type || ''}`;
+  $('pointSummary').innerHTML = `<b>${escapeHtml(pt.label)}</b><br>${escapeHtml(pt.description)}<br><small>ID punto: ${escapeHtml(pt.id)}</small>`;
+  $('pointCount').textContent = '1';
+  $('anomalyList').className = 'anomaly-list changeover-list';
+  $('anomalyList').innerHTML = `<form id="changeoverPointForm" class="changeover-form">
+    <div class="changeover-head-actions">
+      <button type="button" class="${state.changePhase==='out'?'active':''}" data-edit-phase="out">Tipo uscente</button>
+      <button type="button" class="${state.changePhase==='in'?'active':''}" data-edit-phase="in">Nuovo tipo</button>
+    </div>
+    <label>Stato punto
+      <select id="coPointStatus">
+        <option value="todo" ${(rec.status||'todo')==='todo'?'selected':''}>${escapeHtml(labelChangeStatus('todo', state.changePhase))}</option>
+        <option value="progress" ${rec.status==='progress'?'selected':''}>${escapeHtml(labelChangeStatus('progress', state.changePhase))}</option>
+        <option value="done" ${rec.status==='done'?'selected':''}>${escapeHtml(labelChangeStatus('done', state.changePhase))}</option>
+        <option value="check" ${rec.status==='check'?'selected':''}>${escapeHtml(labelChangeStatus('check', state.changePhase))}</option>
+      </select>
+    </label>
+    <label>Commento sul punto
+      <textarea id="coPointComment" placeholder="Esempio: smontato, manca centraggio, da verificare posizione, chiamare manutenzione...">${escapeHtml(rec.comment || '')}</textarea>
+    </label>
+    <label>Operatore
+      <input id="coPointOperator" value="${escapeAttr(rec.operator_name || '')}" placeholder="Nome operatore" />
+    </label>
+    <div class="form-actions">
+      <button class="primary-btn" type="submit">Salva punto</button>
+      <button type="button" id="backToChangeover" class="ghost-btn">Torna al cambio tipo</button>
+    </div>
+  </form>`;
+  $('changeoverPointForm').addEventListener('submit', (e) => saveChangeoverPoint(e, pt));
+  $('anomalyList').querySelectorAll('[data-edit-phase]').forEach(btn => btn.addEventListener('click', () => {
+    state.changePhase = btn.dataset.editPhase;
+    renderChangeoverPointEditor(pt);
+    applyChangeoverOverlay();
+  }));
+  $('backToChangeover').addEventListener('click', renderChangeover);
+}
+
+async function saveChangeoverPoint(e, pt){
+  e.preventDefault();
+  if(!state.activeChangeover || !pt) return;
+  const body = {
+    zone: `Zona ${state.zone}`,
+    point_id: pt.id,
+    point_label: pt.label,
+    phase: state.changePhase,
+    status: $('coPointStatus').value,
+    comment: $('coPointComment').value.trim(),
+    operator_name: $('coPointOperator').value.trim()
+  };
+  try{
+    let item;
+    if(state.apiUrl){
+      const res = await apiFetch(`/api/changeovers/${encodeURIComponent(state.activeChangeover.id)}/points/${encodeURIComponent(pt.id)}?phase=${encodeURIComponent(state.changePhase)}`, {method:'PATCH', body: JSON.stringify(body)});
+      item = res.item;
+    }else{
+      item = {...body, id: crypto.randomUUID(), changeover_id: state.activeChangeover.id, updated_at:new Date().toISOString()};
+      const all = JSON.parse(localStorage.getItem(CHANGEOVER_POINTS_STORAGE_KEY) || '[]');
+      const idx = all.findIndex(x => x.changeover_id === item.changeover_id && x.point_id === item.point_id && x.phase === item.phase);
+      if(idx >= 0) all[idx] = {...all[idx], ...item}; else all.push(item);
+      localStorage.setItem(CHANGEOVER_POINTS_STORAGE_KEY, JSON.stringify(all));
+      state.changeoverPoints = all.filter(x => x.changeover_id === state.activeChangeover.id);
+    }
+    const i = state.changeoverPoints.findIndex(x => x.point_id === item.point_id && x.phase === item.phase);
+    if(i >= 0) state.changeoverPoints[i] = item; else state.changeoverPoints.push(item);
+    applyChangeoverOverlay();
+    toast('Punto cambio tipo aggiornato.');
+    renderChangeoverPointEditor(pt);
+  }catch(err){
+    console.error(err);
+    toast('Errore salvataggio punto cambio tipo: controlla PIN app e Worker V18.');
+  }
+}
+
+async function setAllChangeoverPoints(status){
+  if(!state.activeChangeover) return;
+  if(!confirm(`Impostare tutti i punti della fase corrente come "${labelChangeStatus(status,state.changePhase)}"?`)) return;
+  const zoneNum = String(state.activeChangeover.zone || `Zona ${state.zone}`).replace(/\D/g,'') || state.zone;
+  const points = ZONES[zoneNum]?.points || [];
+  for(const pt of points){
+    try{
+      const body = {zone:`Zona ${zoneNum}`, point_id:pt.id, point_label:pt.label, phase:state.changePhase, status, comment:'', operator_name:''};
+      if(state.apiUrl){
+        const res = await apiFetch(`/api/changeovers/${encodeURIComponent(state.activeChangeover.id)}/points/${encodeURIComponent(pt.id)}?phase=${encodeURIComponent(state.changePhase)}`, {method:'PATCH', body: JSON.stringify(body)});
+        const idx = state.changeoverPoints.findIndex(x => x.point_id === pt.id && x.phase === state.changePhase);
+        if(idx >= 0) state.changeoverPoints[idx] = res.item; else state.changeoverPoints.push(res.item);
+      }else{
+        const item = {...body, id: crypto.randomUUID(), changeover_id: state.activeChangeover.id, updated_at:new Date().toISOString()};
+        const idx = state.changeoverPoints.findIndex(x => x.point_id === pt.id && x.phase === state.changePhase);
+        if(idx >= 0) state.changeoverPoints[idx] = {...state.changeoverPoints[idx], ...item}; else state.changeoverPoints.push(item);
+      }
+    }catch(err){ console.error(err); }
+  }
+  if(!state.apiUrl) localStorage.setItem(CHANGEOVER_POINTS_STORAGE_KEY, JSON.stringify(state.changeoverPoints));
+  renderChangeover();
+}
+
+async function closeActiveChangeover(){
+  if(!state.activeChangeover) return;
+  if(!confirm('Chiudere il cambio tipologia attivo? Potrai comunque tenerne traccia nello storico D1.')) return;
+  try{
+    if(state.apiUrl){
+      const res = await apiFetch(`/api/changeovers/${encodeURIComponent(state.activeChangeover.id)}`, {method:'PATCH', body: JSON.stringify({status:'completato'})});
+      state.activeChangeover = null;
+      state.changeovers = state.changeovers.filter(c => c.id !== res.item.id);
+      state.changeoverPoints = [];
+    }else{
+      state.changeovers = state.changeovers.map(c => c.id === state.activeChangeover.id ? {...c,status:'completato',updated_at:new Date().toISOString()} : c);
+      localStorage.setItem(CHANGEOVER_STORAGE_KEY, JSON.stringify(state.changeovers));
+      state.activeChangeover = null; state.changeoverPoints = [];
+    }
+    applyChangeoverOverlay();
+    renderChangeover();
+  }catch(err){ toast('Errore chiusura cambio tipo.'); }
+}
+
+function getChangeoverPoint(pointId, phase=state.changePhase){
+  return (state.changeoverPoints || []).find(x => x.point_id === pointId && x.phase === phase);
+}
+
+function changeoverStats(phase, zonePoints){
+  const total = zonePoints.length;
+  const done = zonePoints.filter(pt => (getChangeoverPoint(pt.id, phase)?.status || 'todo') === 'done').length;
+  return {total, done, pct: total ? Math.round(done/total*100) : 0};
+}
+
+function applyChangeoverOverlay(){
+  const map = $('mapInner');
+  if(!map) return;
+  map.classList.toggle('changeover-active', state.listMode === 'changeover' && Boolean(state.activeChangeover));
+  document.querySelectorAll('.hotspot').forEach(el => {
+    el.classList.remove('co-todo','co-progress','co-done','co-check');
+    el.removeAttribute('data-change-label');
+    if(state.listMode === 'changeover' && state.activeChangeover){
+      const rec = getChangeoverPoint(el.dataset.id, state.changePhase);
+      const st = rec?.status || 'todo';
+      el.classList.add('co-' + st);
+      el.dataset.changeLabel = labelChangeStatus(st, state.changePhase);
+    }
+  });
+}
+
+function labelChangeStatus(status, phase='out'){
+  const out = {todo:'Da smontare',progress:'In lavorazione',done:'Smontato',check:'Da controllare'};
+  const inn = {todo:'Da montare',progress:'In lavorazione',done:'Montato',check:'Da verificare'};
+  return (phase === 'in' ? inn : out)[status] || status || '-';
+}
+
+function exportChangeoverTxt(){
+  if(!state.activeChangeover){ toast('Nessun cambio tipo attivo.'); return; }
+  const zoneNum = String(state.activeChangeover.zone || `Zona ${state.zone}`).replace(/\D/g,'') || state.zone;
+  const points = ZONES[zoneNum]?.points || [];
+  const lines = [];
+  lines.push(`CAMBIO TIPO - ${new Date().toLocaleString('it-IT')}`);
+  lines.push(`Zona: ${state.activeChangeover.zone}`);
+  lines.push(`Tipo da togliere: ${state.activeChangeover.old_type}`);
+  lines.push(`Nuovo tipo: ${state.activeChangeover.new_type}`);
+  lines.push('');
+  ['out','in'].forEach(phase => {
+    lines.push(phase === 'out' ? 'SMONTAGGIO TIPO USCENTE' : 'MONTAGGIO NUOVO TIPO');
+    points.forEach(pt => {
+      const r = getChangeoverPoint(pt.id, phase) || {status:'todo'};
+      lines.push(`${pt.label}: ${labelChangeStatus(r.status, phase)}${r.comment ? ' - ' + r.comment : ''}${r.operator_name ? ' (' + r.operator_name + ')' : ''}`);
+    });
+    lines.push('');
+  });
+  downloadText('cambio-tipologia-riepilogo.txt', lines.join('\n'));
+}
+
 function showAllAnomalies(status='tutte'){
   state.listMode = 'all';
   state.selectedPoint = null;
@@ -468,6 +861,7 @@ function renderZone(){
     layer.appendChild(btn);
   });
   $('mapInner').classList.toggle('show-areas', state.showAreas);
+  applyChangeoverOverlay();
   setZoom(1);
 }
 
@@ -500,10 +894,21 @@ function fallbackImageClick(e){
 
 function selectPoint(pointId){
   if(!pointId) return;
-  state.listMode = 'point';
-  $('newAnomalyBtn').classList.remove('hidden');
   const pt = ZONES[state.zone].points.find(p => p.id === pointId);
   if(!pt) return;
+
+  if(state.listMode === 'changeover'){
+    state.selectedChangePoint = pt;
+    state.selectedPoint = pt;
+    $('pointSelect').value = pt.id;
+    document.querySelectorAll('.hotspot').forEach(el => el.classList.toggle('selected', el.dataset.id === pt.id));
+    renderChangeoverPointEditor(pt);
+    openDetailSection(true);
+    return;
+  }
+
+  state.listMode = 'point';
+  $('newAnomalyBtn').classList.remove('hidden');
   state.selectedPoint = pt;
   $('pointSelect').value = pt.id;
   document.querySelectorAll('.hotspot').forEach(el => el.classList.toggle('selected', el.dataset.id === pt.id));
@@ -591,6 +996,9 @@ async function loadAnomalies(options={}){
     if(!silent) toast('Backend non raggiungibile: uso dati locali.');
   }finally{
     state.loading = false;
+    if(state.listMode === 'changeover' && state.apiUrl){
+      await loadChangeovers();
+    }
     renderAnomalies();
   }
 }
@@ -735,6 +1143,7 @@ function renderAnomalies(){
   }
   const drawerOpen = $('drawerOpenCount');
   if(drawerOpen) drawerOpen.textContent = open;
+  if(state.listMode !== 'changeover') applyChangeoverOverlay();
 
   if(state.listMode === 'history'){
     renderHistory();
@@ -743,6 +1152,11 @@ function renderAnomalies(){
 
   if(state.listMode === 'report'){
     renderReport();
+    return;
+  }
+
+  if(state.listMode === 'changeover'){
+    renderChangeover();
     return;
   }
 

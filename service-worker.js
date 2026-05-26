@@ -1,4 +1,4 @@
-const CACHE_NAME = 'passaggio-consegne-v17';
+const CACHE_NAME = 'passaggio-consegne-v18';
 const ASSETS = [
   './index.html?v=17',
   './style.css?v=17',
