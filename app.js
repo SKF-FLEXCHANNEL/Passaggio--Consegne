@@ -1,7 +1,7 @@
 /* Passaggio Consegne - Frontend condiviso Cloudflare Workers/D1
    Versione 21: fix selezioni + cambio tipo senza azzerare i campi.
 */
-const APP_VERSION = '22.0.0-changeover-multizone-fix';
+const APP_VERSION = '23.0.0-admin-delete-layout-points';
 const DEFAULT_API_URL = 'https://passaggio-consegne-api.vocidicassino.workers.dev';
 const AUTO_SYNC_MS = 15000;
 const LOG_STORAGE_KEY = 'pc_anomalie_log_local_v9';
@@ -13,6 +13,7 @@ const ADMIN_PIN_SESSION_KEY = 'pc_admin_pin_session_v13';
 const SOUND_ENABLED_KEY = 'pc_internal_alert_sound_v14';
 const CHANGEOVER_STORAGE_KEY = 'pc_changeovers_local_v18';
 const CHANGEOVER_POINTS_STORAGE_KEY = 'pc_changeover_points_local_v18';
+const HIDDEN_POINTS_STORAGE_KEY = 'pc_hidden_layout_points_v23';
 
 const ZONES = {
   1: {
@@ -128,6 +129,27 @@ const ZONES = {
 
 function p(id, label, description, x, y, w, h){ return {id,label,description,x,y,w,h}; }
 
+function hiddenPointKey(zoneNum, pointId){
+  return `Z${zoneNumFrom(zoneNum)}:${String(pointId || '')}`;
+}
+function normalizeHiddenPoint(row){
+  if(!row) return '';
+  if(typeof row === 'string') return row.includes(':') ? row : hiddenPointKey(state.zone, row);
+  return hiddenPointKey(row.zone || row.zone_num || state.zone, row.point_id || row.id || '');
+}
+function isPointHidden(pointId, zoneNum=state.zone){
+  const key = hiddenPointKey(zoneNum, pointId);
+  return (state.hiddenPoints || []).map(normalizeHiddenPoint).includes(key);
+}
+function getVisiblePoints(zoneNum=state.zone){
+  const z = zoneNumFrom(zoneNum);
+  return (ZONES[z]?.points || []).filter(pt => !isPointHidden(pt.id, z));
+}
+function getAllPointById(pointId, zoneNum=state.zone){
+  const z = zoneNumFrom(zoneNum);
+  return (ZONES[z]?.points || []).find(p => p.id === pointId) || null;
+}
+
 function zoneNumFrom(value){
   const n = String(value || '').replace(/\D/g, '');
   return n && ZONES[n] ? n : (typeof state !== 'undefined' ? state.zone : '1');
@@ -173,7 +195,8 @@ const state = {
   selectedChangePoint: null,
   changeoverDraft: {},
   changeoverPointDraft: {},
-  changeoverTyping: false
+  changeoverTyping: false,
+  hiddenPoints: JSON.parse(localStorage.getItem(HIDDEN_POINTS_STORAGE_KEY) || '[]')
 };
 
 const $ = (id) => document.getElementById(id);
@@ -184,6 +207,7 @@ window.addEventListener('DOMContentLoaded', () => {
   syncDetailOpenState();
   tickClock(); setInterval(tickClock, 1000);
   renderZone();
+  loadHiddenPoints({rerender:true});
   loadAnomalies();
   startAutoSync();
   if(!state.userPin) setTimeout(() => openAccessDialog(true), 350);
@@ -394,7 +418,7 @@ function renderReport(){
     const zone = btn.dataset.zone;
     const pointLabel = btn.dataset.pointLabel;
     const zoneNum = String(zone || '').replace(/\D/g,'') || state.zone;
-    const pt = (ZONES[zoneNum]?.points || []).find(p => p.label === pointLabel || p.id === pointLabel);
+    const pt = getVisiblePoints(zoneNum).find(p => p.label === pointLabel || p.id === pointLabel);
     if(pt) openAnomalyPoint(zone, pt.id);
   }));
   const exportBtn = $('exportReportBtn');
@@ -542,7 +566,7 @@ function renderChangeover(){
   // V22: durante un cambio tipologia attivo la zona visualizzata resta libera.
   // L'utente può passare da Zona 1 a Zona 2 o Zona 3 senza uscire dal cambio tipo.
   const zoneNum = state.zone;
-  const zonePoints = ZONES[zoneNum]?.points || [];
+  const zonePoints = getVisiblePoints(zoneNum);
   const outStats = changeoverStats('out', zonePoints);
   const inStats = changeoverStats('in', zonePoints);
   $('pointSummary').innerHTML = `
@@ -680,7 +704,7 @@ async function startChangeover(e){
     operator_name: $('coOperator').value.trim(),
     notes: $('coNotes').value.trim(),
     status: 'attivo',
-    points: (ZONES[zoneNumForBody]?.points || []).map(pt => ({id:pt.id, label:pt.label}))
+    points: getVisiblePoints(zoneNumForBody).map(pt => ({id:pt.id, label:pt.label}))
   };
   if(!body.old_type || !body.new_type){ toast('Inserisci tipo da togliere e nuovo tipo.'); return; }
   try{
@@ -693,7 +717,7 @@ async function startChangeover(e){
       const id = crypto.randomUUID();
       state.activeChangeover = {...body, id, created_at:new Date().toISOString(), updated_at:new Date().toISOString()};
       const zoneNum = String(body.zone).replace(/\D/g,'') || state.zone;
-      const points = createDefaultChangeoverPoints(state.activeChangeover, ZONES[zoneNum]?.points || []);
+      const points = createDefaultChangeoverPoints(state.activeChangeover, getVisiblePoints(zoneNum));
       state.changeovers.unshift(state.activeChangeover);
       state.changeoverPoints = points;
       localStorage.setItem(CHANGEOVER_STORAGE_KEY, JSON.stringify(state.changeovers));
@@ -754,6 +778,7 @@ function renderChangeoverPointEditor(pt){
     <div class="form-actions">
       <button class="primary-btn" type="submit">Salva punto</button>
       <button type="button" id="backToChangeover" class="ghost-btn">Torna al cambio tipo</button>
+      <button type="button" id="deleteLayoutPointBtn" class="danger">Elimina punto dal disegno</button>
     </div>
   </form>`;
   bindChangeoverFormProtection($('changeoverPointForm'), 'point');
@@ -764,7 +789,10 @@ function renderChangeoverPointEditor(pt){
     applyChangeoverOverlay();
   }));
   $('backToChangeover').addEventListener('click', renderChangeover);
+  const delBtn = $('deleteLayoutPointBtn');
+  if(delBtn) delBtn.addEventListener('click', () => deleteLayoutPoint(pt));
 }
+
 
 async function saveChangeoverPoint(e, pt){
   e.preventDefault();
@@ -809,7 +837,7 @@ async function setAllChangeoverPoints(status){
   if(!state.activeChangeover) return;
   if(!confirm(`Impostare tutti i punti della fase corrente come "${labelChangeStatus(status,state.changePhase)}"?`)) return;
   const zoneNum = state.zone;
-  const points = ZONES[zoneNum]?.points || [];
+  const points = getVisiblePoints(zoneNum);
   for(const pt of points){
     try{
       const backendPointId = changeoverBackendPointId(pt, state.changePhase, zoneNum);
@@ -888,7 +916,7 @@ function labelChangeStatus(status, phase='out'){
 function exportChangeoverTxt(){
   if(!state.activeChangeover){ toast('Nessun cambio tipo attivo.'); return; }
   const zoneNum = state.zone;
-  const points = ZONES[zoneNum]?.points || [];
+  const points = getVisiblePoints(zoneNum);
   const lines = [];
   lines.push(`CAMBIO TIPO - ${new Date().toLocaleString('it-IT')}`);
   lines.push(`Zona: ${state.activeChangeover.zone}`);
@@ -956,10 +984,11 @@ function renderZone(){
   $('layoutImage').src = zone.image;
   $('layoutImage').alt = `Layout Zona ${state.zone}`;
   const select = $('pointSelect');
-  select.innerHTML = '<option value="">-- Seleziona punto --</option>' + zone.points.map(pt => `<option value="${escapeAttr(pt.id)}">${escapeHtml(pt.label)}</option>`).join('');
+  const visiblePoints = getVisiblePoints(state.zone);
+  select.innerHTML = '<option value="">-- Seleziona punto --</option>' + visiblePoints.map(pt => `<option value="${escapeAttr(pt.id)}">${escapeHtml(pt.label)}</option>`).join('');
   const layer = $('hotspotLayer');
   layer.innerHTML = '';
-  zone.points.forEach(pt => {
+  visiblePoints.forEach(pt => {
     const btn = document.createElement('button');
     btn.className = 'hotspot';
     btn.type = 'button';
@@ -991,7 +1020,7 @@ function fallbackImageClick(e){
   const rect = e.currentTarget.getBoundingClientRect();
   const x = ((e.clientX - rect.left) / rect.width) * 100;
   const y = ((e.clientY - rect.top) / rect.height) * 100;
-  const pts = ZONES[state.zone].points;
+  const pts = getVisiblePoints(state.zone);
   const exact = pts.find(pt => x >= pt.x && x <= pt.x + pt.w && y >= pt.y && y <= pt.y + pt.h);
   if(exact){ selectPoint(exact.id); return; }
   let best = null, bestD = Infinity;
@@ -1005,7 +1034,7 @@ function fallbackImageClick(e){
 
 function selectPoint(pointId){
   if(!pointId) return;
-  const pt = ZONES[state.zone].points.find(p => p.id === pointId);
+  const pt = getVisiblePoints(state.zone).find(p => p.id === pointId);
   if(!pt) return;
 
   if(state.listMode === 'changeover'){
@@ -1038,7 +1067,7 @@ function openAnomalyPoint(zoneName, pointId){
     document.querySelectorAll('.zone-tab').forEach(b => b.classList.toggle('active', b.dataset.zone === state.zone));
     renderZone();
   }
-  const pt = ZONES[state.zone].points.find(p => p.id === pointId);
+  const pt = getVisiblePoints(state.zone).find(p => p.id === pointId);
   if(pt){
     selectPoint(pt.id);
   }
@@ -1076,6 +1105,74 @@ function openDetailSection(scroll=true){
   }
 }
 
+
+async function loadHiddenPoints(options={}){
+  try{
+    let rows = [];
+    if(state.apiUrl){
+      const data = await apiFetch('/api/hidden-points');
+      rows = data.items || [];
+    }else{
+      rows = JSON.parse(localStorage.getItem(HIDDEN_POINTS_STORAGE_KEY) || '[]');
+    }
+    state.hiddenPoints = rows.map(normalizeHiddenPoint).filter(Boolean);
+    localStorage.setItem(HIDDEN_POINTS_STORAGE_KEY, JSON.stringify(state.hiddenPoints));
+  }catch(err){
+    console.warn('Punti nascosti non caricati, uso cache locale', err);
+    state.hiddenPoints = JSON.parse(localStorage.getItem(HIDDEN_POINTS_STORAGE_KEY) || '[]').map(normalizeHiddenPoint).filter(Boolean);
+  }
+  if(options.rerender){
+    renderZone();
+    if(state.listMode === 'changeover') renderChangeover();
+  }
+}
+
+async function ensureAdminUnlocked(message='Inserisci il PIN admin.'){
+  const existing = state.adminPin || sessionStorage.getItem(ADMIN_PIN_SESSION_KEY) || '';
+  if(existing){
+    try{ await verifyAdminPin(existing); state.adminPin = existing; return true; }catch(_){ }
+  }
+  const pin = prompt(message);
+  if(!pin) return false;
+  try{
+    await verifyAdminPin(pin.trim());
+    state.adminPin = pin.trim();
+    sessionStorage.setItem(ADMIN_PIN_SESSION_KEY, state.adminPin);
+    return true;
+  }catch(err){
+    toast('PIN admin non valido oppure Worker non aggiornato.');
+    return false;
+  }
+}
+
+async function deleteLayoutPoint(pt){
+  if(!pt) return;
+  const okPin = await ensureAdminUnlocked(`Eliminare per sempre il punto ${pt.label} dal disegno? Inserisci PIN admin.`);
+  if(!okPin) return;
+  if(!confirm(`Confermi eliminazione del punto "${pt.label}" dal disegno della Zona ${state.zone}?\n\nIl punto non comparirà più nel layout, nel menu selezione e nel cambio tipologia.`)) return;
+  try{
+    const key = hiddenPointKey(state.zone, pt.id);
+    if(state.apiUrl){
+      await apiFetchAdmin(`/api/admin/layout-points/${encodeURIComponent('Zona ' + state.zone)}/${encodeURIComponent(pt.id)}`, {
+        method:'DELETE',
+        body: JSON.stringify({point_label: pt.label})
+      });
+      await loadHiddenPoints();
+    }else{
+      state.hiddenPoints = [...new Set([...(state.hiddenPoints || []).map(normalizeHiddenPoint), key])];
+      localStorage.setItem(HIDDEN_POINTS_STORAGE_KEY, JSON.stringify(state.hiddenPoints));
+    }
+    toast(`Punto ${pt.label} eliminato dal disegno.`);
+    state.selectedPoint = null;
+    state.selectedChangePoint = null;
+    renderZone();
+    if(state.listMode === 'changeover') renderChangeover(); else resetDetail();
+  }catch(err){
+    console.error(err);
+    toast('Eliminazione punto non riuscita: aggiorna Worker V23 e migration D1.');
+  }
+}
+
 async function loadAnomalies(options={}){
   const silent = Boolean(options.silent);
   const background = Boolean(options.background);
@@ -1107,6 +1204,7 @@ async function loadAnomalies(options={}){
     if(!silent) toast('Backend non raggiungibile: uso dati locali.');
   }finally{
     state.loading = false;
+    if(!background) await loadHiddenPoints();
     const protectChangeoverForm = isChangeoverFormProtected();
     if(state.listMode === 'changeover' && state.apiUrl && !protectChangeoverForm){
       await loadChangeovers();
