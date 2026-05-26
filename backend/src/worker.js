@@ -13,7 +13,7 @@ export default {
       const path = url.pathname.replace(/\/+$/, '') || '/';
 
       if (path === '/' || path === '/api/health') {
-        return json({ status: 'online', app: 'passaggio-consegne-api', version: '15-strict-skf-origin', time: new Date().toISOString() }, 200, cors);
+        return json({ status: 'online', app: 'passaggio-consegne-api', version: '18-changeover-strict-skf-origin', time: new Date().toISOString() }, 200, cors);
       }
 
       if (path === '/api/admin/check' && request.method === 'POST') {
@@ -33,6 +33,28 @@ export default {
       if (path === '/api/anomalies' && request.method === 'POST') {
         await requireAppPinOrWriteKey(request, env);
         return await createAnomaly(request, env, cors);
+      }
+
+      if (path === '/api/changeovers' && request.method === 'GET') return await listChangeovers(request, env, cors);
+      if (path === '/api/changeovers' && request.method === 'POST') {
+        await requireAppPinOrWriteKey(request, env);
+        return await createChangeover(request, env, cors);
+      }
+
+      const changePointsMatch = path.match(/^\/api\/changeovers\/([^/]+)\/points$/);
+      if (changePointsMatch && request.method === 'GET') return await listChangeoverPoints(changePointsMatch[1], request, env, cors);
+
+      const changePointMatch = path.match(/^\/api\/changeovers\/([^/]+)\/points\/([^/]+)$/);
+      if (changePointMatch && request.method === 'PATCH') {
+        await requireAppPinOrWriteKey(request, env);
+        return await updateChangeoverPoint(changePointMatch[1], changePointMatch[2], request, env, cors);
+      }
+
+      const changeMatch = path.match(/^\/api\/changeovers\/([^/]+)$/);
+      if (changeMatch && request.method === 'GET') return await getChangeover(changeMatch[1], env, cors);
+      if (changeMatch && request.method === 'PATCH') {
+        await requireAppPinOrWriteKey(request, env);
+        return await updateChangeover(changeMatch[1], request, env, cors);
       }
 
       const logMatch = path.match(/^\/api\/logs\/([^/]+)$/);
@@ -299,4 +321,161 @@ async function logEvent(env, anomaly, action, status, operatorName) {
       ).run();
     } catch (_) {}
   }
+}
+
+
+function cleanChangeoverStatus(status) {
+  const allowed = ['attivo', 'completato', 'annullato'];
+  return allowed.includes(status) ? status : 'attivo';
+}
+function cleanChangePointPhase(phase) {
+  return phase === 'in' ? 'in' : 'out';
+}
+function cleanChangePointStatus(status) {
+  const allowed = ['todo', 'progress', 'done', 'check'];
+  return allowed.includes(status) ? status : 'todo';
+}
+
+async function listChangeovers(request, env, cors) {
+  const url = new URL(request.url);
+  const status = url.searchParams.get('status');
+  const limit = Math.min(Math.max(parseInt(url.searchParams.get('limit') || '100', 10), 1), 500);
+  const where = [];
+  const params = [];
+  if (status && status !== 'tutti') { where.push('status = ?'); params.push(cleanChangeoverStatus(status)); }
+  const sql = `SELECT * FROM changeovers ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY datetime(updated_at) DESC LIMIT ?`;
+  params.push(limit);
+  const result = await env.DB.prepare(sql).bind(...params).all();
+  return json({ items: result.results || [] }, 200, cors);
+}
+
+async function getChangeover(id, env, cors) {
+  const item = await env.DB.prepare('SELECT * FROM changeovers WHERE id = ?').bind(id).first();
+  if (!item) return json({ error: 'Cambio tipologia non trovato' }, 404, cors);
+  return json({ item }, 200, cors);
+}
+
+async function createChangeover(request, env, cors) {
+  const body = await readJson(request);
+  if (!body.zone || !body.old_type || !body.new_type) {
+    return json({ error: 'Campi obbligatori mancanti: zone, old_type, new_type' }, 400, cors);
+  }
+  const now = new Date().toISOString();
+  const item = {
+    id: crypto.randomUUID(),
+    created_at: now,
+    updated_at: now,
+    zone: String(body.zone).slice(0, 60),
+    old_type: String(body.old_type).slice(0, 120),
+    new_type: String(body.new_type).slice(0, 120),
+    status: cleanChangeoverStatus(body.status || 'attivo'),
+    operator_name: String(body.operator_name || '').slice(0, 120),
+    notes: String(body.notes || '').slice(0, 4000)
+  };
+
+  await env.DB.prepare(`
+    INSERT INTO changeovers (id, created_at, updated_at, zone, old_type, new_type, status, operator_name, notes)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(item.id, item.created_at, item.updated_at, item.zone, item.old_type, item.new_type, item.status, item.operator_name, item.notes).run();
+
+  const points = Array.isArray(body.points) ? body.points.slice(0, 120) : [];
+  const inserted = [];
+  for (const pt of points) {
+    const pointId = String(pt.id || '').slice(0, 80);
+    if (!pointId) continue;
+    const pointLabel = String(pt.label || pt.id || '').slice(0, 120);
+    for (const phase of ['out', 'in']) {
+      const row = {
+        id: crypto.randomUUID(), changeover_id: item.id, created_at: now, updated_at: now,
+        zone: item.zone, point_id: pointId, point_label: pointLabel, phase, status: 'todo', comment: '', operator_name: ''
+      };
+      await env.DB.prepare(`
+        INSERT INTO changeover_points (id, changeover_id, created_at, updated_at, zone, point_id, point_label, phase, status, comment, operator_name)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(row.id, row.changeover_id, row.created_at, row.updated_at, row.zone, row.point_id, row.point_label, row.phase, row.status, row.comment, row.operator_name).run();
+      inserted.push(row);
+    }
+  }
+  await logChangeoverEvent(env, item, 'create', item.operator_name);
+  return json({ item, points: inserted }, 201, cors);
+}
+
+async function updateChangeover(id, request, env, cors) {
+  const existing = await env.DB.prepare('SELECT * FROM changeovers WHERE id = ?').bind(id).first();
+  if (!existing) return json({ error: 'Cambio tipologia non trovato' }, 404, cors);
+  const body = await readJson(request);
+  const now = new Date().toISOString();
+  const item = {
+    ...existing,
+    updated_at: now,
+    old_type: body.old_type !== undefined ? String(body.old_type).slice(0, 120) : existing.old_type,
+    new_type: body.new_type !== undefined ? String(body.new_type).slice(0, 120) : existing.new_type,
+    status: body.status !== undefined ? cleanChangeoverStatus(body.status) : existing.status,
+    operator_name: body.operator_name !== undefined ? String(body.operator_name).slice(0, 120) : existing.operator_name,
+    notes: body.notes !== undefined ? String(body.notes).slice(0, 4000) : existing.notes
+  };
+  await env.DB.prepare(`
+    UPDATE changeovers SET updated_at=?, old_type=?, new_type=?, status=?, operator_name=?, notes=? WHERE id=?
+  `).bind(item.updated_at, item.old_type, item.new_type, item.status, item.operator_name, item.notes, id).run();
+  await logChangeoverEvent(env, item, existing.status !== item.status ? `status:${existing.status}->${item.status}` : 'update', item.operator_name || '');
+  return json({ item }, 200, cors);
+}
+
+async function listChangeoverPoints(changeoverId, request, env, cors) {
+  const url = new URL(request.url);
+  const phase = url.searchParams.get('phase');
+  const where = ['changeover_id = ?'];
+  const params = [changeoverId];
+  if (phase) { where.push('phase = ?'); params.push(cleanChangePointPhase(phase)); }
+  const result = await env.DB.prepare(`
+    SELECT * FROM changeover_points WHERE ${where.join(' AND ')} ORDER BY point_label ASC, phase ASC
+  `).bind(...params).all();
+  return json({ items: result.results || [] }, 200, cors);
+}
+
+async function updateChangeoverPoint(changeoverId, pointId, request, env, cors) {
+  const change = await env.DB.prepare('SELECT * FROM changeovers WHERE id = ?').bind(changeoverId).first();
+  if (!change) return json({ error: 'Cambio tipologia non trovato' }, 404, cors);
+  const body = await readJson(request);
+  const phase = cleanChangePointPhase(body.phase || new URL(request.url).searchParams.get('phase') || 'out');
+  const now = new Date().toISOString();
+  const existing = await env.DB.prepare('SELECT * FROM changeover_points WHERE changeover_id = ? AND point_id = ? AND phase = ?').bind(changeoverId, pointId, phase).first();
+  const item = {
+    id: existing?.id || crypto.randomUUID(),
+    changeover_id: changeoverId,
+    created_at: existing?.created_at || now,
+    updated_at: now,
+    zone: String(body.zone || change.zone || '').slice(0, 60),
+    point_id: String(body.point_id || pointId).slice(0, 80),
+    point_label: String(body.point_label || existing?.point_label || pointId).slice(0, 120),
+    phase,
+    status: cleanChangePointStatus(body.status || existing?.status || 'todo'),
+    comment: String(body.comment || '').slice(0, 4000),
+    operator_name: String(body.operator_name || '').slice(0, 120)
+  };
+  if (existing) {
+    await env.DB.prepare(`
+      UPDATE changeover_points SET updated_at=?, zone=?, point_label=?, status=?, comment=?, operator_name=? WHERE id=?
+    `).bind(item.updated_at, item.zone, item.point_label, item.status, item.comment, item.operator_name, item.id).run();
+  } else {
+    await env.DB.prepare(`
+      INSERT INTO changeover_points (id, changeover_id, created_at, updated_at, zone, point_id, point_label, phase, status, comment, operator_name)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(item.id, item.changeover_id, item.created_at, item.updated_at, item.zone, item.point_id, item.point_label, item.phase, item.status, item.comment, item.operator_name).run();
+  }
+  await env.DB.prepare('UPDATE changeovers SET updated_at = ? WHERE id = ?').bind(now, changeoverId).run();
+  await logChangeoverEvent(env, {...change, zone:item.zone, point_id:item.point_id, point_label:item.point_label, phase:item.phase, status:item.status}, `point:${phase}:${item.status}`, item.operator_name);
+  return json({ item }, 200, cors);
+}
+
+async function logChangeoverEvent(env, change, action, operatorName) {
+  try {
+    await env.DB.prepare(`
+      INSERT INTO changeover_log (id, changeover_id, created_at, action, zone, point_id, point_label, phase, status, operator_name, old_type, new_type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      crypto.randomUUID(), change.id, new Date().toISOString(), action,
+      change.zone || '', change.point_id || '', change.point_label || '', change.phase || '', change.status || '', operatorName || '', change.old_type || '', change.new_type || ''
+    ).run();
+  } catch (_) {}
 }
