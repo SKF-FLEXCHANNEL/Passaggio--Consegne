@@ -155,6 +155,8 @@ const $ = (id) => document.getElementById(id);
 
 window.addEventListener('DOMContentLoaded', () => {
   bindEvents();
+
+  syncDetailOpenState();
   tickClock(); setInterval(tickClock, 1000);
   renderZone();
   loadAnomalies();
@@ -164,6 +166,15 @@ window.addEventListener('DOMContentLoaded', () => {
   if(state.soundEnabled) document.addEventListener('pointerdown', unlockAlertAudio, {once:true});
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('service-worker.js').catch(()=>{});
 });
+
+
+function syncDetailOpenState(){
+  const panel = $('detailPanel');
+  if(!panel) return;
+  const update = () => document.body.classList.toggle('detail-open', panel.classList.contains('open'));
+  update();
+  new MutationObserver(update).observe(panel, { attributes:true, attributeFilter:['class'] });
+}
 
 function bindEvents(){
   document.querySelectorAll('.zone-tab').forEach(btn => btn.addEventListener('click', () => switchZone(btn.dataset.zone)));
