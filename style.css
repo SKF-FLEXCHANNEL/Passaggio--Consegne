@@ -260,3 +260,54 @@ select,input,textarea{width:100%;border:1px solid var(--line);border-radius:12px
   font-weight:800;
 }
 #deleteLayoutPointBtn:hover{filter:brightness(1.08)}
+
+
+/* V24 - tasto elimina punto sempre visibile nel Cambio tipologia */
+.changeover-point-row{
+  grid-template-columns:1fr!important;
+  cursor:default;
+}
+.changeover-point-info{
+  display:grid;
+  grid-template-columns:minmax(90px,1fr) auto;
+  gap:6px 10px;
+  align-items:center;
+  cursor:pointer;
+}
+.changeover-point-info small{grid-column:1 / -1;color:#cbd5e1}
+.changeover-row-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:8px;
+}
+.changeover-row-actions .mini{
+  font-size:12px;
+  padding:8px 10px;
+  border-radius:10px;
+  font-weight:900;
+}
+.delete-layout-point-mini,
+.delete-layout-point-main,
+.admin-delete-point-box .danger{
+  border:1px solid rgba(248,113,113,.92)!important;
+  background:linear-gradient(180deg,#b91c1c,#7f1d1d)!important;
+  color:#fff!important;
+}
+.admin-delete-point-box{
+  border:1px solid rgba(248,113,113,.55);
+  border-radius:14px;
+  padding:12px;
+  background:rgba(127,29,29,.18);
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.admin-delete-point-box b{color:#fecaca;font-size:15px}
+.admin-delete-point-box p{margin:0;color:#fee2e2;font-size:13px;line-height:1.35}
+.delete-layout-point-main{width:100%;padding:12px 14px;border-radius:12px;font-weight:900}
+@media(max-width:520px){
+  .changeover-point-info{grid-template-columns:1fr}
+  .changeover-row-actions{flex-direction:column}
+  .changeover-row-actions button{width:100%}
+}

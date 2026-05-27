@@ -264,7 +264,13 @@ function bindEvents(){
   on('closeMenuBtn', 'click', closeMenu);
   on('drawerBackdrop', 'click', closeMenu);
 
-  document.addEventListener('keydown', (e) => { if(e.key === 'Escape') { closeMenu(); closeDetail(); } });
+  document.addEventListener('keydown', (e) => {
+    if(e.key === 'Escape') { closeMenu(); closeDetail(); return; }
+    if((e.key === 'Enter' || e.key === ' ') && e.target?.matches?.('[data-change-point]')){
+      e.preventDefault();
+      selectPoint(e.target.dataset.changePoint);
+    }
+  });
   document.querySelectorAll('[data-menu-action]').forEach(btn => {
     btn.addEventListener('click', () => handleMenuAction(btn.dataset.menuAction));
   });
@@ -277,6 +283,16 @@ function bindEvents(){
       e.preventDefault();
       e.stopPropagation();
       selectPoint(hot.dataset.id);
+      return;
+    }
+
+    const delLayoutPoint = e.target.closest('[data-delete-layout-point]');
+    if(delLayoutPoint && delLayoutPoint.dataset.deleteLayoutPoint){
+      e.preventDefault();
+      e.stopPropagation();
+      const pt = getVisiblePoints(state.zone).find(p => p.id === delLayoutPoint.dataset.deleteLayoutPoint) || getAllPointById(delLayoutPoint.dataset.deleteLayoutPoint, state.zone);
+      if(pt) deleteLayoutPoint(pt);
+      else toast('Punto non trovato in questa zona.');
       return;
     }
 
@@ -617,11 +633,17 @@ function changeoverDashboardHtml(zonePoints, outStats, inStats){
   const rows = zonePoints.map(pt => {
     const rec = getChangeoverPoint(pt.id, state.changePhase);
     const status = rec?.status || 'todo';
-    return `<button type="button" class="changeover-point-row ${status}" data-change-point="${escapeAttr(pt.id)}">
-      <span>${escapeHtml(pt.label)}</span>
-      <b>${escapeHtml(labelChangeStatus(status, state.changePhase))}</b>
-      ${rec?.comment ? `<small>${escapeHtml(rec.comment)}</small>` : '<small>Nessun commento</small>'}
-    </button>`;
+    return `<article class="changeover-point-row ${status}">
+      <div class="changeover-point-info" data-change-point="${escapeAttr(pt.id)}" role="button" tabindex="0">
+        <span>${escapeHtml(pt.label)}</span>
+        <b>${escapeHtml(labelChangeStatus(status, state.changePhase))}</b>
+        ${rec?.comment ? `<small>${escapeHtml(rec.comment)}</small>` : '<small>Nessun commento</small>'}
+      </div>
+      <div class="changeover-row-actions">
+        <button type="button" class="ghost-btn mini" data-change-point="${escapeAttr(pt.id)}">Apri scheda</button>
+        <button type="button" class="danger mini delete-layout-point-mini" data-delete-layout-point="${escapeAttr(pt.id)}">Elimina punto</button>
+      </div>
+    </article>`;
   }).join('');
   return `<section class="changeover-box">
     <div class="changeover-head-actions">
@@ -775,10 +797,14 @@ function renderChangeoverPointEditor(pt){
     <label>Operatore
       <input id="coPointOperator" value="${escapeAttr(rec.operator_name || '')}" placeholder="Nome operatore" />
     </label>
+    <div class="admin-delete-point-box">
+      <b>Gestione admin punto</b>
+      <p>Usa questo comando solo per eliminare una voce sbagliata dal disegno tecnico. Verrà richiesto il PIN admin.</p>
+      <button type="button" id="deleteLayoutPointBtn" class="danger delete-layout-point-main" data-delete-layout-point="${escapeAttr(pt.id)}">Elimina definitivamente questo punto</button>
+    </div>
     <div class="form-actions">
       <button class="primary-btn" type="submit">Salva punto</button>
       <button type="button" id="backToChangeover" class="ghost-btn">Torna al cambio tipo</button>
-      <button type="button" id="deleteLayoutPointBtn" class="danger">Elimina punto dal disegno</button>
     </div>
   </form>`;
   bindChangeoverFormProtection($('changeoverPointForm'), 'point');
