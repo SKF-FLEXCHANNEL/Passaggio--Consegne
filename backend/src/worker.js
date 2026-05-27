@@ -13,7 +13,7 @@ export default {
       const path = url.pathname.replace(/\/+$/, '') || '/';
 
       if (path === '/' || path === '/api/health') {
-        return json({ status: 'online', app: 'passaggio-consegne-api', version: '18-changeover-strict-skf-origin', time: new Date().toISOString() }, 200, cors);
+        return json({ status: 'online', app: 'passaggio-consegne-api', version: '23-hidden-layout-points-strict-skf-origin', time: new Date().toISOString() }, 200, cors);
       }
 
       if (path === '/api/admin/check' && request.method === 'POST') {
@@ -26,6 +26,14 @@ export default {
       }
 
       if (!env.DB) return json({ error: 'D1 binding DB mancante. Controlla il binding DB del Worker.' }, 500, cors);
+
+      if (path === '/api/hidden-points' && request.method === 'GET') return await listHiddenPoints(env, cors);
+
+      const hiddenPointMatch = path.match(/^\/api\/admin\/layout-points\/([^/]+)\/([^/]+)$/);
+      if (hiddenPointMatch && request.method === 'DELETE') {
+        await requireAdminPin(request, env);
+        return await hideLayoutPoint(hiddenPointMatch[1], hiddenPointMatch[2], request, env, cors);
+      }
 
       if (path === '/api/stats' && request.method === 'GET') return await getStats(env, cors);
       if (path === '/api/anomalies' && request.method === 'GET') return await listAnomalies(request, env, cors);
@@ -151,6 +159,55 @@ function cleanPriority(priority) {
 function cleanProblemType(type) {
   const allowed = ['sensore','meccanica','elettrica','robot','visione_keyence','misura','gioco_radiale','scorrevolezza','lavatrice','pesatura_grasso','sicurezza','altro'];
   return allowed.includes(type) ? type : 'altro';
+}
+
+
+async function ensureHiddenPointsTable(env) {
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS hidden_points (
+      id TEXT PRIMARY KEY,
+      created_at TEXT NOT NULL,
+      zone TEXT NOT NULL,
+      point_id TEXT NOT NULL,
+      point_label TEXT DEFAULT '',
+      deleted_by TEXT DEFAULT '',
+      UNIQUE(zone, point_id)
+    )
+  `).run();
+  await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_hidden_points_zone ON hidden_points(zone)').run();
+}
+
+async function listHiddenPoints(env, cors) {
+  try {
+    await ensureHiddenPointsTable(env);
+    const result = await env.DB.prepare('SELECT zone, point_id, point_label, created_at FROM hidden_points ORDER BY zone, point_label, point_id').all();
+    return json({ items: result.results || [] }, 200, cors);
+  } catch (err) {
+    return json({ items: [] }, 200, cors);
+  }
+}
+
+async function hideLayoutPoint(zoneRaw, pointIdRaw, request, env, cors) {
+  await ensureHiddenPointsTable(env);
+  let body = {};
+  try { body = await request.json(); } catch (_) {}
+  const zone = decodeURIComponent(String(zoneRaw || '')).slice(0, 60);
+  const pointId = decodeURIComponent(String(pointIdRaw || '')).slice(0, 80);
+  const pointLabel = String(body.point_label || pointId).slice(0, 120);
+  if (!zone || !pointId) return json({ error: 'Zona o punto mancante' }, 400, cors);
+  const item = {
+    id: crypto.randomUUID(),
+    created_at: new Date().toISOString(),
+    zone,
+    point_id: pointId,
+    point_label: pointLabel,
+    deleted_by: 'admin'
+  };
+  await env.DB.prepare(`
+    INSERT OR IGNORE INTO hidden_points (id, created_at, zone, point_id, point_label, deleted_by)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).bind(item.id, item.created_at, item.zone, item.point_id, item.point_label, item.deleted_by).run();
+  return json({ ok: true, item }, 200, cors);
 }
 
 async function listAnomalies(request, env, cors) {
