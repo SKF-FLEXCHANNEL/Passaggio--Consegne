@@ -1,7 +1,7 @@
 /* Passaggio Consegne - Frontend condiviso Cloudflare Workers/D1
-   Versione 21: fix selezioni + cambio tipo senza azzerare i campi.
+   Versione 25: restyling grafico effetto WOW senza modificare la logica.
 */
-const APP_VERSION = '23.0.0-admin-delete-layout-points';
+const APP_VERSION = '25.0.0-wow-graphics';
 const DEFAULT_API_URL = 'https://passaggio-consegne-api.vocidicassino.workers.dev';
 const AUTO_SYNC_MS = 15000;
 const LOG_STORAGE_KEY = 'pc_anomalie_log_local_v9';
